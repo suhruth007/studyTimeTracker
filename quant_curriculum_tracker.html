@@ -1,0 +1,1906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SciML to Quant Finance Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            slateInk: "#07111f",
+            panel: "#0e1a2b",
+            panelSoft: "#12233a",
+            line: "#22344d"
+          },
+          boxShadow: {
+            glow: "0 0 0 1px rgba(56,189,248,.18), 0 24px 70px rgba(8,47,73,.35)"
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background:
+        radial-gradient(circle at top left, rgba(14, 165, 233, 0.15), transparent 30rem),
+        linear-gradient(135deg, #07111f 0%, #0b1627 45%, #101827 100%);
+      min-height: 100vh;
+    }
+
+    .progress-ring {
+      background:
+        conic-gradient(#38bdf8 var(--progress-deg), rgba(30, 41, 59, 0.95) 0deg);
+    }
+
+    .month-tab[aria-selected="true"] {
+      background: linear-gradient(135deg, rgba(14, 165, 233, 0.95), rgba(2, 132, 199, 0.9));
+      color: white;
+      border-color: rgba(125, 211, 252, 0.85);
+      box-shadow: 0 10px 34px rgba(14, 165, 233, 0.24);
+    }
+
+    .week-card[data-complete="true"] {
+      border-color: rgba(56, 189, 248, 0.55);
+      background: linear-gradient(180deg, rgba(14, 165, 233, 0.1), rgba(15, 23, 42, 0.72));
+    }
+
+    .custom-check {
+      appearance: none;
+      width: 1.35rem;
+      height: 1.35rem;
+      border: 1px solid rgb(71, 85, 105);
+      border-radius: 0.35rem;
+      display: grid;
+      place-content: center;
+      background: rgba(15, 23, 42, 0.84);
+      flex: 0 0 auto;
+    }
+
+    .custom-check::before {
+      content: "";
+      width: 0.72rem;
+      height: 0.72rem;
+      clip-path: polygon(14% 44%, 0 59%, 40% 100%, 100% 18%, 84% 5%, 38% 66%);
+      transform: scale(0);
+      transform-origin: center;
+      transition: 120ms transform ease-in-out;
+      background: #e0f2fe;
+    }
+
+    .custom-check:checked {
+      border-color: #38bdf8;
+      background: #0284c7;
+    }
+
+    .custom-check:checked::before {
+      transform: scale(1);
+    }
+
+    .learning-outcome {
+      display: flex;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+      line-height: 1.5rem;
+      color: rgb(203, 213, 225);
+    }
+
+    .learning-outcome .bullet {
+      color: rgb(14, 165, 233);
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body class="font-sans text-slate-100 antialiased">
+  <main class="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-6 px-4 py-5 sm:px-6 lg:px-8">
+    <header class="grid gap-5 lg:grid-cols-[1fr_21rem] lg:items-stretch">
+      <section class="flex min-h-[15rem] flex-col justify-between rounded-lg border border-slate-700/70 bg-slate-950/58 p-5 shadow-glow backdrop-blur">
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p class="text-sm font-semibold uppercase tracking-[0.18em] text-sky-300">24-week intensive</p>
+            <h1 class="mt-2 max-w-3xl text-3xl font-semibold tracking-normal text-white sm:text-5xl">
+              SciML to Quant Finance
+            </h1>
+            <p class="mt-4 max-w-3xl text-base leading-7 text-slate-300">
+              A coding-first bridge from physics and AI engineering into markets, derivatives, microstructure, and systematic trading research.
+            </p>
+          </div>
+          <div class="flex gap-2">
+            <button id="showOverview" class="group inline-grid h-11 w-11 place-items-center rounded-lg border border-slate-700 bg-slate-900/80 text-slate-300 transition hover:border-sky-400 hover:text-sky-200" type="button" title="Show overview" aria-label="Show overview">
+              <svg aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </button>
+            <button id="resetProgress" class="group inline-grid h-11 w-11 place-items-center rounded-lg border border-slate-700 bg-slate-900/80 text-slate-300 transition hover:border-sky-400 hover:text-sky-200" type="button" title="Reset progress" aria-label="Reset progress">
+              <svg aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4.75 9.75A7.5 7.5 0 1 1 6.5 17.5" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4.75 4.75v5h5" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="mt-6 grid gap-3 sm:grid-cols-3">
+          <div class="rounded-lg border border-slate-700/80 bg-slate-900/70 p-4">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Training Load</p>
+            <p class="mt-2 text-2xl font-semibold text-white">12-16 h/wk</p>
+          </div>
+          <div class="rounded-lg border border-slate-700/80 bg-slate-900/70 p-4">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Output</p>
+            <p class="mt-2 text-2xl font-semibold text-white">24 builds</p>
+          </div>
+          <div class="rounded-lg border border-slate-700/80 bg-slate-900/70 p-4">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Capstone</p>
+            <p class="mt-2 text-2xl font-semibold text-white">Research stack</p>
+          </div>
+        </div>
+      </section>
+
+      <aside class="grid rounded-lg border border-slate-700/70 bg-slate-950/58 p-5 shadow-glow backdrop-blur">
+        <div class="flex items-center gap-5">
+          <div id="progressRing" class="progress-ring grid h-32 w-32 shrink-0 place-items-center rounded-full" style="--progress-deg: 0deg;">
+            <div class="grid h-[6.6rem] w-[6.6rem] place-items-center rounded-full bg-slate-950">
+              <div class="text-center">
+                <p id="progressPct" class="text-3xl font-semibold text-white">0%</p>
+                <p class="text-xs uppercase tracking-[0.12em] text-slate-400">complete</p>
+              </div>
+            </div>
+          </div>
+          <div>
+            <p class="text-sm font-semibold uppercase tracking-[0.16em] text-sky-300">Progress</p>
+            <p id="progressCount" class="mt-3 text-3xl font-semibold text-white">0 / 24</p>
+            <p id="currentPhase" class="mt-2 text-sm leading-6 text-slate-300">Month 1: Market Mechanics</p>
+          </div>
+        </div>
+        <div class="mt-5 h-2 overflow-hidden rounded-full bg-slate-800">
+          <div id="progressBar" class="h-full rounded-full bg-sky-400 transition-all duration-300" style="width: 0%;"></div>
+        </div>
+      </aside>
+    </header>
+
+    <nav class="rounded-lg border border-slate-700/70 bg-slate-950/58 p-2 shadow-glow backdrop-blur" aria-label="Monthly curriculum">
+      <div id="monthTabs" class="grid gap-2 sm:grid-cols-2 lg:grid-cols-6"></div>
+    </nav>
+
+    <section id="monthHeader" class="rounded-lg border border-slate-700/70 bg-slate-950/58 p-5 shadow-glow backdrop-blur"></section>
+
+    <section id="overviewPanel" class="hidden rounded-lg border border-slate-700/70 bg-slate-950/58 p-5 shadow-glow backdrop-blur">
+      <div class="space-y-4">
+        <div>
+          <h3 class="text-lg font-semibold text-white mb-2">What is SciML to Quant Finance?</h3>
+          <p class="text-slate-300 leading-6">
+            This curriculum bridges <strong>Scientific Machine Learning (SciML)</strong> — the discipline of applying physics-informed AI to complex dynamical systems — with <strong>Quantitative Finance</strong>. Markets are dynamical systems governed by order flow, inventory, and risk dynamics. By learning to build models from first principles (like physicists) and validate them rigorously (like engineers), you develop the technical foundation to systematically trade and research financial markets.
+          </p>
+        </div>
+        <div>
+          <h3 class="text-lg font-semibold text-white mb-2">Prerequisites</h3>
+          <p class="text-slate-300 leading-6">
+            You should be comfortable with: Python (pandas, numpy, scipy), calculus and linear algebra, basic probability and statistics, and willingness to read research papers. You do <strong>not</strong> need prior finance knowledge — the curriculum teaches that from the ground up.
+          </p>
+        </div>
+        <div>
+          <h3 class="text-lg font-semibold text-white mb-2">Learning Trajectory</h3>
+          <p class="text-slate-300 leading-6">
+            <strong>Months 1–2:</strong> Build your mental model of markets as data, distributions, and dynamical systems.<br/>
+            <strong>Months 3–4:</strong> Learn the mathematics of pricing and the mechanics of execution.<br/>
+            <strong>Months 5–6:</strong> Apply machine learning and AI with proper validation and production rigor.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section id="weeksGrid" class="grid gap-4 lg:grid-cols-2"></section>
+  </main>
+
+  <script>
+    const sourceUrls = {
+      mit2024: "https://ocw.mit.edu/courses/18-642-topics-in-mathematics-with-applications-in-finance-fall-2024/",
+      mitVideos: "https://ocw.mit.edu/courses/18-s096-topics-in-mathematics-with-applications-in-finance-fall-2013/video_galleries/video-lectures/",
+      hull: "https://www.pearson.com/en-us/subject-catalog/p/options-futures-and-other-derivatives/P200000005938/9780136939917",
+      shreve: "https://link.springer.com/book/9780387401010",
+      glasserman: "https://link.springer.com/book/10.1007/978-0-387-21617-1",
+      chan: "https://www.wiley-vch.de/en/areas-interest/finance-economics-law/finance-investments-13fi/trading-13fi4/quantitative-trading-978-1-394-37804-3",
+      prado: "https://www.oreilly.com/library/view/advances-in-financial/9781119482086/",
+      jansen: "https://stefan-jansen.github.io/machine-learning-for-trading/",
+      gatech: "https://quantsoftware.gatech.edu/Machine_Learning_for_Trading_Course",
+      cme241: "https://cme241.github.io/",
+      liquidity: "https://academic.oup.com/book/55158",
+      statsmodels: "https://www.statsmodels.org/stable/tsa.html",
+      sklearn: "https://scikit-learn.org/stable/modules/cross_validation.html",
+      french: "https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_library.html",
+      pyfolio: "https://github.com/quantopian/pyfolio",
+      mlfinlab: "https://github.com/hudson-and-thames/mlfinlab",
+      arxivGnn: "https://arxiv.org/abs/1809.09441",
+      cartea: "https://assets.cambridge.org/97811070/91146/frontmatter/9781107091146_frontmatter.pdf",
+      sec: "https://www.sec.gov/search-filings/edgar-application-programming-interfaces",
+      mlflow: "https://mlflow.org/docs/latest/index.html",
+      fastapi: "https://fastapi.tiangolo.com/",
+      pytorch: "https://pytorch.org/tutorials/",
+      pyg: "https://pytorch-geometric.readthedocs.io/en/latest/"
+    };
+
+    const curriculum = [
+      {
+        month: 1,
+        monthTitle: "Market Mechanics",
+        monthSubtitle: "Build the language of markets, returns, data quality, and experimental hygiene.",
+        week: 1,
+        focus: "Market primitives: instruments, venues, orders, returns, OHLCV, corporate actions",
+        description: "Learn what markets actually are: where prices come from, what data providers sell, how corporate actions distort historical prices, and why 'return' has multiple definitions depending on context.",
+        analogy: "Coordinate systems in mechanics: price, return, log-return, volume, spread, and notional are different observables of the same market state. If the coordinates are wrong, every downstream law looks false.",
+        outcomes: [
+          "Pull historical equity data from public sources and understand the difference between raw and adjusted prices",
+          "Compute simple returns, log returns, and understand which is appropriate for which analysis",
+          "Identify data quality issues: missing values, splits, dividends, delistings, survivorship bias"
+        ],
+        task: "Write a Python market-data loader that pulls equities/ETFs, adjusts prices, computes simple and log returns, rolling volatility, volume features, and a reproducible parquet dataset.",
+        detailed: `
+          <div class="mt-4 border-t border-slate-600 pt-4">
+            <h4 class="text-sm font-bold text-sky-300 mb-3">📚 DETAILED LEARNING SEQUENCE:</h4>
+            
+            <div class="space-y-4 text-sm text-slate-200">
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 1: Understand Market Structure (Day 1-2)</p>
+                <p><strong>MIT 18.S096 Lecture 1:</strong> "Market Basics" (Watch 0:00 - 45:00)</p>
+                <p class="text-xs text-slate-400 mt-1">Focus: What is a stock exchange, order types, bid-ask spread</p>
+              </div>
+
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 2: Learn Return Calculations (Day 2-3)</p>
+                <p><strong>Chan "Quantitative Trading" Ch. 1:</strong> "Introduction to Returns" (Pages 1-28)</p>
+                <p class="text-xs text-slate-400 mt-1">Key sections: 1.1 Simple returns formula, 1.2 Log returns derivation, 1.3 When to use each</p>
+                <p class="mt-2"><strong>Mathematical detail:</strong> Simple return = (P_t - P_{t-1})/P_{t-1}, Log return = ln(P_t/P_{t-1})</p>
+              </div>
+
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 3: Data Quality & Corporate Actions (Day 3-4)</p>
+                <p><strong>Chan "Quantitative Trading" Ch. 2:</strong> "Data Preparation" (Pages 29-67)</p>
+                <p class="text-xs text-slate-400 mt-1">Sections: 2.1 Stock splits (multiply by ratio), 2.2 Dividends (adjust close price), 2.3 Delisting bias</p>
+                <p class="mt-2"><strong>Practical example:</strong> AAPL 2014 7:1 split → adjust all pre-split prices ÷ 7</p>
+              </div>
+
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 4: Hands-On Coding (Day 4-5)</p>
+                <p><strong>Jansen "ML4T" Ch. 1.1-1.3:</strong> "Acquiring Data" notebook</p>
+                <p class="text-xs text-slate-400 mt-1">Use pandas.DataReader to pull from Yahoo Finance → apply adjustments → save to parquet</p>
+                <p class="mt-2"><strong>Code template:</strong> df = yf.download('AAPL', start='2020-01-01') → df['returns'] = df['Adj Close'].pct_change()</p>
+              </div>
+
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 5: Validate Your Implementation (Day 5)</p>
+                <p><strong>Test checklist:</strong></p>
+                <ul class="list-disc list-inside mt-2 space-y-1 text-xs">
+                  <li>Verify log_return ≈ simple_return for small returns</li>
+                  <li>Check split adjustments: post-split daily returns should match pre-split</li>
+                  <li>Validate: sum of daily log returns ≈ buy-hold log return</li>
+                  <li>Output data in Parquet format for reproducibility</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        `,
+        resources: [
+          { label: "MIT 18.S096 L1", url: sourceUrls.mitVideos },
+          { label: "Chan Ch.1-2", url: sourceUrls.chan },
+          { label: "Jansen Data Ch", url: sourceUrls.jansen }
+        ]
+      },
+      {
+        month: 1,
+        monthTitle: "Market Mechanics",
+        monthSubtitle: "Build the language of markets, returns, data quality, and experimental hygiene.",
+        week: 2,
+        focus: "Probability for returns: distributions, heavy tails, drawdowns, bootstrap inference",
+        description: "Real market returns don't follow a normal distribution — they have fat tails, skew, and extreme events. Learn to characterize distributions honestly and estimate uncertainty in your statistics.",
+        analogy: "Statistical mechanics: one price path is one microstate; a distribution of paths is the ensemble. Quant work starts when you stop trusting one trajectory.",
+        outcomes: [
+          "Plot empirical return distributions and compare to normal using QQ plots",
+          "Estimate tail indices (Hill estimator) and understand extreme value theory basics",
+          "Use bootstrap to construct confidence intervals around Sharpe ratios and drawdowns",
+          "Spot the difference between historical volatility and forward-looking uncertainty"
+        ],
+        task: "Create a return-distribution laboratory: QQ plots, tail-index estimates, bootstrap confidence intervals, drawdown distributions, and rolling Sharpe uncertainty bands.",
+        detailed: `
+          <div class="mt-4 border-t border-slate-600 pt-4">
+            <h4 class="text-sm font-bold text-sky-300 mb-3">📚 DETAILED LEARNING SEQUENCE:</h4>
+            
+            <div class="space-y-4 text-sm text-slate-200">
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 1: Why Normal Distribution Fails (Day 1)</p>
+                <p><strong>MIT 18.642 Lecture 2:</strong> "Heavy Tails and Extreme Events" (20:00 - 55:00)</p>
+                <p class="text-xs text-slate-400 mt-1">Key concept: Excess kurtosis in equity returns = probability mass in tails</p>
+              </div>
+
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 2: Empirical vs Theoretical (Day 1-2)</p>
+                <p><strong>Chan "Quantitative Trading" Ch. 3:</strong> "Statistical Analysis of Returns" (Pages 68-105)</p>
+                <p class="text-xs text-slate-400 mt-1">Read sections: 3.1 (Mean, Variance, Skew, Kurtosis), 3.2 (QQ plots)</p>
+                <p class="mt-2"><strong>Code task:</strong> import scipy.stats → qqplot(returns) → compare to theoretical normal line</p>
+              </div>
+
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 3: Hill Estimator for Tail Risk (Day 2)</p>
+                <p><strong>Reference:</strong> Extreme Value Theory (EVT) basics</p>
+                <p class="text-xs text-slate-400 mt-1">Formula: α (tail index) = 1 / mean(log(X_i / X_threshold))</p>
+                <p class="mt-2"><strong>Interpretation:</strong> α=2 is normal-ish, α=1.5 has heavy tails (stock market typical: 2-4)</p>
+                <p class="mt-2"><strong>Code:</strong> scipy.stats.pareto_gen.fit() on extreme left/right tails</p>
+              </div>
+
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 4: Bootstrap Confidence Intervals (Day 3)</p>
+                <p><strong>Jansen "ML4T" Ch. 2.2:</strong> "Portfolio Analysis Notebooks"</p>
+                <p class="text-xs text-slate-400 mt-1">Method: Resample returns WITH replacement → compute Sharpe N times → 2.5/97.5 percentiles</p>
+                <p class="mt-2"><strong>Why it works:</strong> No distributional assumptions, works for ANY return distribution</p>
+                <p class="mt-2"><strong>Code template:</strong> np.random.choice(returns, size=len(returns), replace=True) → loop 10k times</p>
+              </div>
+
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 5: Drawdown Analysis (Day 3-4)</p>
+                <p><strong>Pyfolio documentation:</strong> "Portfolio Performance" section</p>
+                <p class="text-xs text-slate-400 mt-1">Drawdown = (Current_Value - Running_Max) / Running_Max</p>
+                <p class="mt-2"><strong>Calculate:</strong> Max drawdown, average drawdown, drawdown duration</p>
+                <p class="mt-2"><strong>Code:</strong> cumsum(returns) → cummax() → (cumsum - cummax)/cummax</p>
+              </div>
+
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 6: Build Your Lab (Day 4-5)</p>
+                <p><strong>Deliverable:</strong> Python notebook with all 5 analyses side-by-side</p>
+                <ul class="list-disc list-inside mt-2 space-y-1 text-xs">
+                  <li>QQ plot showing deviation from normal</li>
+                  <li>Tail index estimate (print α value)</li>
+                  <li>Bootstrap Sharpe with 95% CI bands</li>
+                  <li>Histogram of returns with bootstrap envelope</li>
+                  <li>Drawdown chart with annotations</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        `,
+        resources: [
+          { label: "MIT 18.642 L2", url: sourceUrls.mitVideos },
+          { label: "Chan Ch.3", url: sourceUrls.chan },
+          { label: "Pyfolio Perf", url: sourceUrls.pyfolio }
+        ]
+      },
+      {
+        month: 1,
+        monthTitle: "Market Mechanics",
+        monthSubtitle: "Build the language of markets, returns, data quality, and experimental hygiene.",
+        week: 3,
+        focus: "Time series: stationarity, autocorrelation, ARIMA intuition, volatility clustering",
+        description: "Markets are not just random walk; they exhibit memory (autocorrelation), changing volatility (clustering), and regimes. Learn the statistical tools to detect and model these structures.",
+        analogy: "Damped oscillators under noisy forcing: markets show memory in volatility even when directional returns look close to white noise.",
+        outcomes: [
+          "Use ACF/PACF plots to detect autocorrelation in returns and squared returns",
+          "Perform Augmented Dickey-Fuller test to check if a time series is stationary",
+          "Fit and forecast with ARIMA models and understand their limitations",
+          "Detect volatility clustering and understand its implications for risk modeling"
+        ],
+        task: "Implement an exploratory time-series notebook: ACF/PACF, Ljung-Box, Augmented Dickey-Fuller, rolling regime plots, ARIMA baselines, and forecast error diagnostics.",
+        detailed: `
+          <div class="mt-4 border-t border-slate-600 pt-4">
+            <h4 class="text-sm font-bold text-sky-300 mb-3">📚 DETAILED LEARNING SEQUENCE:</h4>
+            
+            <div class="space-y-4 text-sm text-slate-200">
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 1: Stationarity Test (Day 1)</p>
+                <p><strong>MIT 18.642 Lecture 4:</strong> "Time Series Concepts" (15:30 - 50:00)</p>
+                <p class="text-xs text-slate-400 mt-1">Concept: A stationary series has constant mean/variance; ADF test null = unit root (non-stationary)</p>
+              </div>
+
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 2: ACF/PACF Diagnostics (Day 1-2)</p>
+                <p><strong>Jansen "ML4T" Ch. 3.1-3.2:</strong> "Time Series Analysis"</p>
+                <p class="text-xs text-slate-400 mt-1">ACF shows correlation at lag k; PACF shows direct effect. AR(p) → p spikes in PACF; MA(q) → q spikes in ACF</p>
+                <p class="mt-2"><strong>Code:</strong> from statsmodels.graphics.tsaplots import plot_acf, plot_pacf</p>
+              </div>
+
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 3: ARIMA Intuition & Fitting (Day 2-3)</p>
+                <p><strong>statsmodels documentation:</strong> ARIMA section</p>
+                <p class="text-xs text-slate-400 mt-1">ARIMA(p,d,q): p=AR order, d=differences to stationarity, q=MA order</p>
+                <p class="mt-2"><strong>Process:</strong> (1) ADF test on returns → if p > 0.05, need d=1 diff; (2) Gridsearch (p,d,q) → minimize AIC</p>
+                <p class="mt-2"><strong>Code:</strong> auto_arima(series, seasonal=False) or loop over grid with ARIMA(order).fit()</p>
+              </div>
+
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 4: Volatility Clustering & GARCH (Day 3-4)</p>
+                <p><strong>Reference:</strong> "Volatility Clustering in Financial Markets" - Cont 2001</p>
+                <p class="text-xs text-slate-400 mt-1">Observation: Large |returns| tend to be followed by large |returns| (volatility persistence)</p>
+                <p class="mt-2"><strong>GARCH(1,1) formula:</strong> σ²_t = ω + α·r²_{t-1} + β·σ²_{t-1}</p>
+                <p class="mt-2"><strong>Code:</strong> from arch import arch_model → arch_model(returns, vol='Garch', p=1, q=1).fit()</p>
+              </div>
+
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 5: Build Your Diagnostics Notebook (Day 4-5)</p>
+                <p><strong>Deliverable components:</strong></p>
+                <ul class="list-disc list-inside mt-2 space-y-1 text-xs">
+                  <li>Panel 1: Plot returns + 30-day rolling vol (visual volatility clustering)</li>
+                  <li>Panel 2: ACF of returns (should be white noise-ish), ACF of squared returns (autocorr persists)</li>
+                  <li>Panel 3: PACF to estimate AR order</li>
+                  <li>Panel 4: Ljung-Box p-values by lag (test if autocorr is significant)</li>
+                  <li>Panel 5: ADF test result + ARIMA(p,d,q) selected</li>
+                  <li>Panel 6: GARCH conditional volatility forecast vs realized</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        `,
+        resources: [
+          { label: "MIT 18.642 L4", url: sourceUrls.mitVideos },
+          { label: "Jansen Ch.3", url: sourceUrls.jansen },
+          { label: "arch GARCH", url: sourceUrls.pypi }
+        ]
+      },
+      {
+        month: 1,
+        monthTitle: "Market Mechanics",
+        monthSubtitle: "Build the language of markets, returns, data quality, and experimental hygiene.",
+        week: 4,
+        focus: "Backtesting mechanics: data splits, costs, slippage, survivorship, look-ahead bias",
+        description: "Backtesting is where theory meets reality. Most backtests are wrong due to subtle leakage of future information. Learn the checklist to build honest tests that predict live performance.",
+        analogy: "Experimental apparatus calibration: a biased detector can discover impossible particles. A biased backtest can discover impossible alpha.",
+        outcomes: [
+          "Split data properly: train/validation/test with no look-ahead bias",
+          "Account for transaction costs: bid-ask spread, slippage, commissions",
+          "Avoid survivorship bias by including delisted assets in your history",
+          "Understand how overfitting disguises as high Sharpe ratios in backtest results"
+        ],
+        task: "Build a vectorized backtester for daily signals with transaction costs, cash accounting, benchmark comparison, walk-forward splits, and a red-team checklist for leakage.",
+        detailed: `
+          <div class="mt-4 border-t border-slate-600 pt-4">
+            <h4 class="text-sm font-bold text-sky-300 mb-3">📚 DETAILED LEARNING SEQUENCE:</h4>
+            
+            <div class="space-y-4 text-sm text-slate-200">
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 1: Data Splitting & Walk-Forward (Day 1)</p>
+                <p><strong>MIT 18.S096 Lecture 5:</strong> "Backtesting Pitfalls" (0:00 - 40:00)</p>
+                <p class="text-xs text-slate-400 mt-1">Standard splits: Train [2010-2018] → Validation [2018-2019] → Test [2020-2021]</p>
+                <p class="mt-2"><strong>Walk-forward:</strong> Retrain model every N weeks, test on next N weeks (simulates live drift)</p>
+              </div>
+
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 2: Look-Ahead Bias Examples (Day 1-2)</p>
+                <p><strong>Chan "Quantitative Trading" Ch. 5:</strong> "Backtesting and Analysis" (Pages 151-190)</p>
+                <p class="text-xs text-slate-400 mt-1">Examples: Using today's close to generate tomorrow's signal (wrong!), filling NaNs forward (wrong!), computing portfolio stats on rebalance day (wrong!)</p>
+              </div>
+
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 3: Transaction Costs Modeling (Day 2-3)</p>
+                <p><strong>Practical costs:</strong></p>
+                <p class="text-xs text-slate-400 mt-1">Bid-ask spread ≈ 0.5-2 bps (small cap); Slippage ≈ 0.1-0.5% (large orders); Commission ≈ 0-10 bps (platform dependent)</p>
+                <p class="mt-2"><strong>Implementation:</strong> Cost_per_trade = notional * (spread + slippage + commission)</p>
+                <p class="mt-2"><strong>For rebalancing:</strong> Subtract costs from portfolio value on every turnover event</p>
+              </div>
+
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 4: Survivorship Bias (Day 3)</p>
+                <p><strong>Problem:</strong> Using only current S&P 500 constituents to backtest (ignores delisted, bankrupt companies)</p>
+                <p class="text-xs text-slate-400 mt-1">Effect: Biases returns UPWARD by ~2-4% annually (you never see the disasters)</p>
+                <p class="mt-2"><strong>Solution:</strong> Use datasets with full delisting history (CRSP, CapitalIQ, local databases)</p>
+              </div>
+
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 5: Build Your Backtester (Day 3-4)</p>
+                <p><strong>Pseudocode architecture:</strong></p>
+                <pre class="text-xs bg-slate-900 p-2 rounded mt-2 overflow-auto">for date in test_dates:
+  signal = compute_signal(data_up_to_date)  # No future data!
+  if signal differs from current:
+    cost = notional * (bps_spread + slippage)
+    portfolio_value -= cost
+  portfolio_value *= (1 + returns[date])  # Realize daily P&L</pre>
+              </div>
+
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 6: Red-Team Your Backtest (Day 4-5)</p>
+                <p><strong>Honesty checklist:</strong></p>
+                <ul class="list-disc list-inside mt-2 space-y-1 text-xs">
+                  <li>□ Am I using ONLY data available on signal day? (Use .shift(1) on lagged features)</li>
+                  <li>□ Have I excluded delisted/bankrupt securities?</li>
+                  <li>□ Are transaction costs realistic for my trading frequency?</li>
+                  <li>□ Did I overfit? (Compare train vs test Sharpe; test should be 30-50% lower)</li>
+                  <li>□ Does the strategy still work on 2 new years of data? (Out-of-sample test)</li>
+                  <li>□ Is slippage accounted for large orders? (10M shares of small-cap = blowout)</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        `,
+        resources: [
+          { label: "Chan Backtesting", url: sourceUrls.chan },
+          { label: "Prado AFML", url: sourceUrls.prado },
+          { label: "pyfolio", url: sourceUrls.pyfolio }
+        ]
+      },
+      {
+        month: 2,
+        monthTitle: "Portfolio and Risk",
+        monthSubtitle: "Turn raw signals into allocations, factors, regimes, and risk constraints.",
+        week: 5,
+        focus: "Portfolio theory: Markowitz optimization, covariance, shrinkage, constraints",
+        description: "A single signal is not a portfolio. Learn how to combine signals while respecting risk budgets, and why covariance estimates from data are often worse than random.",
+        analogy: "Inertia tensor and principal axes: covariance tells you the natural directions of portfolio motion; bad covariance estimates rotate the portfolio into unstable modes.",
+        outcomes: [
+          "Implement minimum-variance, risk-parity, and equal-weight portfolios and compare their out-of-sample risk",
+          "Understand why sample covariance overfits and practice shrinkage estimators",
+          "Add realistic constraints: long-only, leverage limits, concentration limits",
+          "Measure turnover and its impact on realized returns after costs"
+        ],
+        task: "Implement mean-variance, minimum-variance, risk-parity, and shrinkage-covariance optimizers. Compare turnover, drawdown, and realized volatility out-of-sample.",
+        detailed: `
+          <div class="mt-4 border-t border-slate-600 pt-4">
+            <h4 class="text-sm font-bold text-sky-300 mb-3">📚 DETAILED LEARNING SEQUENCE:</h4>
+            
+            <div class="space-y-4 text-sm text-slate-200">
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 1: Markowitz Portfolio (Day 1)</p>
+                <p><strong>MIT 18.S096 Lecture 6:</strong> "Mean-Variance Optimization" (0:00 - 45:00)</p>
+                <p class="text-xs text-slate-400 mt-1">Formula: minimize w^T Σ w - λ·w^T μ subject to w^T 1 = 1, w ≥ 0</p>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 2: Risk-Parity Construction (Day 2)</p>
+                <p><strong>Reference:</strong> Asness "Risk Parity" whitepaper 2012</p>
+                <p class="text-xs text-slate-400 mt-1">Idea: Each asset contributes equally to portfolio volatility → w_i ∝ 1/σ_i</p>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 3: Implement & Compare (Day 3-4)</p>
+                <p><strong>Code:</strong> scipy.optimize.minimize for Markowitz; manual scaling for Risk Parity</p>
+                <p class="text-xs text-slate-400 mt-1">Measure: Sharpe, Max DD, turnover on test set (2018-2021)</p>
+              </div>
+            </div>
+          </div>
+        `,
+        resources: [
+          { label: "MIT 18.S096 L6", url: sourceUrls.mitVideos },
+          { label: "Jansen Portfolio", url: sourceUrls.jansen },
+          { label: "scipy.optimize", url: sourceUrls.pypi }
+        ]
+      },
+      {
+        month: 2,
+        monthTitle: "Portfolio and Risk",
+        monthSubtitle: "Turn raw signals into allocations, factors, regimes, and risk constraints.",
+        week: 6,
+        focus: "Factor models: CAPM, Fama-French, PCA risk factors, residual returns",
+        description: "Most of portfolio risk comes from a few 'factors' (market, size, value, momentum). Learn to decompose returns and find 'alpha' — the returns that don't come from these known risk sources.",
+        analogy: "Normal-mode decomposition: a complex field can be represented by a few dominant modes plus residual noise. Factors are market normal modes.",
+        outcomes: [
+          "Estimate market beta and understand the CAPM equation",
+          "Use Fama-French factors to decompose returns into known and unknown components",
+          "Run PCA on returns and interpret the principal components as market regimes",
+          "Build a hedged portfolio that isolates alpha from factor exposure"
+        ],
+        task: "Build a factor-risk model using Fama-French data and PCA on returns. Estimate betas, residual vol, factor contributions, and hedged residual portfolios.",
+        detailed: `
+          <div class="mt-4 border-t border-slate-600 pt-4">
+            <h4 class="text-sm font-bold text-sky-300 mb-3">📚 DETAILED LEARNING SEQUENCE:</h4>
+            
+            <div class="space-y-4 text-sm text-slate-200">
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 1: CAPM Basics (Day 1)</p>
+                <p><strong>MIT 18.S096 Lecture 7:</strong> "Factor Models" (20:00 - 50:00)</p>
+                <p class="text-xs text-slate-400 mt-1">Formula: r_i = α_i + β_i·r_market + ε_i → estimate via linear regression</p>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 2: Fama-French 3-Factor (Day 2)</p>
+                <p><strong>Data source:</strong> Ken French Data Library (mba.tuck.dartmouth.edu)</p>
+                <p class="text-xs text-slate-400 mt-1">Factors: Market (MKT-RF), Size (SMB), Value (HML). Download monthly 1980-present</p>
+                <p class="mt-2"><strong>Regression:</strong> r_excess = α + β_1·MKT + β_2·SMB + β_3·HML + ε</p>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 3: Build & Analyze (Day 3-5)</p>
+                <p><strong>Deliverables:</strong></p>
+                <ul class="list-disc list-inside mt-2 space-y-1 text-xs">
+                  <li>Heatmap: factor exposures (β) for 20 stocks</li>
+                  <li>Time series: cumulative factor returns decomposition</li>
+                  <li>Residual portfolio that isolates α from factor exposure</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        `,
+        resources: [
+          { label: "MIT 18.S096 L7", url: sourceUrls.mitVideos },
+          { label: "Ken French Data", url: sourceUrls.french },
+          { label: "statsmodels OLS", url: sourceUrls.pypi }
+        ]
+      },
+      {
+        month: 2,
+        monthTitle: "Portfolio and Risk",
+        monthSubtitle: "Turn raw signals into allocations, factors, regimes, and risk constraints.",
+        week: 7,
+        focus: "Risk engine: VaR, CVaR, stress tests, drawdown control, Kelly sizing",
+        description: "Risk is not just volatility. Learn to measure tail risk (how bad can things get?) and set position sizes so you never blow up — the Kelly criterion teaches optimal sizing given your edge.",
+        analogy: "Stress-strain curves: a portfolio can look elastic under small shocks and fail nonlinearly under tail events. Risk is about failure modes, not average motion.",
+        outcomes: [
+          "Compute Value-at-Risk (VaR) and Conditional Value-at-Risk (CVaR) using historical and parametric methods",
+          "Simulate stressed market scenarios and measure portfolio drawdown under crisis conditions",
+          "Apply Kelly criterion and fractional Kelly sizing to position sizing",
+          "Set risk limits that scale with capital and volatility regimes"
+        ],
+        task: "Create a risk service that computes historical/parametric VaR, expected shortfall, drawdown limits, Kelly/fractional Kelly sizing, and shock scenarios.",
+        detailed: `
+          <div class="mt-4 border-t border-slate-600 pt-4">
+            <h4 class="text-sm font-bold text-sky-300 mb-3">📚 DETAILED LEARNING SEQUENCE:</h4>
+            
+            <div class="space-y-4 text-sm text-slate-200">
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 1: VaR & CVaR (Day 1-2)</p>
+                <p><strong>Hull "Options, Futures, and Other Derivatives" Ch. 17:</strong> "Value at Risk" (Pages 400-430)</p>
+                <p class="text-xs text-slate-400 mt-1">VaR_95% = worst 5% loss (quantile); CVaR = average loss BEYOND VaR</p>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 2: Kelly Criterion (Day 2-3)</p>
+                <p><strong>Reference:</strong> "The Kelly Criterion" - Edward Thorp</p>
+                <p class="text-xs text-slate-400 mt-1">Formula: f* = (p·b - q) / b where p=win%, b=odds, q=1-p</p>
+                <p class="mt-2"><strong>Practice:</strong> Use 0.5-0.25 of Kelly to avoid ruin (fractional Kelly)</p>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 3: Implement Risk Module (Day 3-5)</p>
+                <p><strong>Code functions:</strong></p>
+                <ul class="list-disc list-inside mt-2 space-y-1 text-xs">
+                  <li>var_historical(returns, confidence=0.95)</li>
+                  <li>cvar_historical(returns, confidence=0.95)</li>
+                  <li>kelly_fraction(win_rate, avg_win, avg_loss)</li>
+                  <li>max_drawdown_estimate(volatility, sharpe, years)</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        `,
+        resources: [
+          { label: "Hull Ch.17", url: sourceUrls.hull },
+          { label: "Thorp Kelly", url: sourceUrls.academic },
+          { label: "Chan Risk", url: sourceUrls.chan }
+        ]
+      },
+      {
+        month: 2,
+        monthTitle: "Portfolio and Risk",
+        monthSubtitle: "Turn raw signals into allocations, factors, regimes, and risk constraints.",
+        week: 8,
+        focus: "Regime detection: volatility states, HMMs, change points, conditional parameters",
+        description: "Markets are not static. Sometimes they are calm (low vol, trending); sometimes they are chaotic (high vol, no direction). Detect these regimes and use different strategies for each.",
+        analogy: "Phase transitions: water and steam obey different local dynamics; calm and crisis markets need different model parameters.",
+        outcomes: [
+          "Fit Hidden Markov Models to detect market regimes from volatility or other observables",
+          "Use regime detection to gate strategy signals: run momentum in calm markets, mean-reversion in crisis",
+          "Estimate regime-conditional parameters (mean, vol) and use them to size positions dynamically",
+          "Backtest whether regime-aware strategies reduce drawdowns or improve Sharpe"
+        ],
+        task: "Fit volatility regimes with HMMs or Markov switching models. Gate a momentum/mean-reversion strategy by regime and measure whether conditional logic survives walk-forward tests.",
+        detailed: `
+          <div class="mt-4 border-t border-slate-600 pt-4">
+            <h4 class="text-sm font-bold text-sky-300 mb-3">📚 DETAILED LEARNING SEQUENCE:</h4>
+            
+            <div class="space-y-4 text-sm text-slate-200">
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 1: Hidden Markov Models (Day 1-2)</p>
+                <p><strong>statsmodels MarkovRegression:</strong> Fit 2-state HMM to rolling 30-day volatility</p>
+                <p class="text-xs text-slate-400 mt-1">State 1 = calm (low vol), State 2 = crisis (high vol)</p>
+                <p class="mt-2"><strong>Code:</strong> from statsmodels.tsa.markov_model import MarkovAutoregression</p>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 2: Gate Signals by Regime (Day 2-3)</p>
+                <p><strong>Logic:</strong> If regime==calm: use momentum; if regime==crisis: use mean-reversion</p>
+                <p class="text-xs text-slate-400 mt-1">Hypothesis: momentum works in trends, reversion works in choppy markets</p>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 3: Backtest & Validate (Day 3-5)</p>
+                <p><strong>Metrics:</strong> Compare Sharpe, Max DD, win rate: regime-gated vs non-gated</p>
+                <p class="text-xs text-slate-400 mt-1">Question: Does gating survive 2-year forward test? (Answer usually: no, but learn why)</p>
+              </div>
+            </div>
+          </div>
+        `,
+        resources: [
+          { label: "statsmodels TSA", url: sourceUrls.statsmodels },
+          { label: "Chan Regimes", url: sourceUrls.chan },
+          { label: "MIT 18.S096 L8", url: sourceUrls.mitVideos }
+        ]
+      },
+      {
+        month: 3,
+        monthTitle: "Derivatives and Stochastic Processes",
+        monthSubtitle: "Learn no-arbitrage, diffusion, Ito calculus, PDE pricing, and Monte Carlo.",
+        week: 9,
+        focus: "Derivatives basics: forwards, futures, options, payoff diagrams, put-call parity",
+        description: "Derivatives are contracts whose value depends on an underlying asset. The first lesson: many derivatives are redundant (can be replicated by simpler contracts). This non-redundancy is 'arbitrage'.",
+        analogy: "Conservation laws: no-arbitrage is the conservation principle of pricing. If two replicating paths end in the same state, their prices cannot disagree for long.",
+        outcomes: [
+          "Draw payoff diagrams for forwards, calls, puts, and combinations (straddles, collars)",
+          "Use put-call parity to link call and put prices without any model of price movement",
+          "Compute intrinsic and time value; understand why options with the same strike can have different values",
+          "Spot arbitrage opportunities in mispriced options using replication"
+        ],
+        task: "Build an options payoff and parity lab: generate payoff surfaces, synthetic forwards, arbitrage checks, implied breakevens, and Greeks by finite differences.",
+        detailed: `
+          <div class="mt-4 border-t border-slate-600 pt-4">
+            <h4 class="text-sm font-bold text-sky-300 mb-3">📚 DETAILED LEARNING SEQUENCE:</h4>
+            
+            <div class="space-y-4 text-sm text-slate-200">
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 1: Derivatives Taxonomy (Day 1)</p>
+                <p><strong>Hull "Options, Futures" Ch. 1-3:</strong> "Mechanics of Options Markets" (Pages 1-60)</p>
+                <p class="text-xs text-slate-400 mt-1">Forward: F = S*exp(r*T); Call payoff: max(S-K, 0); Put payoff: max(K-S, 0)</p>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 2: Put-Call Parity (Day 2)</p>
+                <p><strong>Reference:</strong> Put-Call Parity = C - P = S - K*exp(-r*T)</p>
+                <p class="text-xs text-slate-400 mt-1">Key insight: Link call and put via replication (no assumptions on future price!)</p>
+                <p class="mt-2\"><strong>Arbitrage check:</strong> If violated, construct riskless profit</p>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 3: Build Payoff Lab (Day 2-4)</p>
+                <p><strong>Deliverables:</strong></p>
+                <ul class="list-disc list-inside mt-2 space-y-1 text-xs">
+                  <li>Function: payoff(spot, strike, opttype='call') → array of P&L</li>
+                  <li>3D surface plot: Call value vs (spot, time-to-exp)</li>
+                  <li>Verify put-call parity: C - P vs S - PV(K)</li>
+                  <li>Greeks by finite diff: Δ = ∂V/∂S, Γ = ∂²V/∂S², Θ = -∂V/∂t</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        `,
+        resources: [
+          { label: "Hull Ch.1-3", url: sourceUrls.hull },
+          { label: "MIT 18.S096 L9", url: sourceUrls.mitVideos },
+          { label: "numpy plotting", url: sourceUrls.pypi }
+        ]
+      },
+      {
+        month: 3,
+        monthTitle: "Derivatives and Stochastic Processes",
+        monthSubtitle: "Learn no-arbitrage, diffusion, Ito calculus, PDE pricing, and Monte Carlo.",
+        week: 10,
+        focus: "Brownian motion, geometric Brownian motion, Ito calculus, stochastic differentials",
+        description: "Markets are random. The right way to model randomness is stochastic processes: Brownian motion for log-prices, mean-reverting processes for spreads. Learn the calculus for noisy systems.",
+        analogy: "Langevin dynamics: drift is deterministic force; diffusion is unresolved microscopic forcing. Ito calculus is the bookkeeping system for noisy trajectories.",
+        outcomes: [
+          "Simulate arithmetic Brownian motion and geometric Brownian motion and compare moments to theory",
+          "Understand Ito's lemma: when you transform a stochastic process, the chain rule has an extra quadratic variation term",
+          "Fit Ornstein-Uhlenbeck models to mean-reverting pairs or spreads",
+          "Use the CIR model for stochastic volatility or interest rates"
+        ],
+        task: "Implement SDE simulators for arithmetic Brownian motion, GBM, Ornstein-Uhlenbeck, and CIR. Verify empirical moments against analytic expectations.",
+        detailed: `
+          <div class="mt-4 border-t border-slate-600 pt-4">
+            <h4 class="text-sm font-bold text-sky-300 mb-3">📚 DETAILED LEARNING SEQUENCE:</h4>
+            
+            <div class="space-y-4 text-sm text-slate-200">
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 1: Brownian Motion Intuition (Day 1)</p>
+                <p><strong>Shreve "Stochastic Calculus for Finance Vol II" Ch. 1:</strong> "Ito Calculus" (Pages 1-50)</p>
+                <p class="text-xs text-slate-400 mt-1">dW_t ~ N(0, dt); property: quadratic variation [W,W]_t = t (not 0!)</p>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 2: SDEs and Euler Scheme (Day 1-2)</p>
+                <p><strong>Formula:</strong> dX_t = μ(X_t, t)dt + σ(X_t, t)dW_t</p>
+                <p class=\"text-xs text-slate-400 mt-1\">Discrete: X_{n+1} = X_n + μ·Δt + σ·√(Δt)·Z_n, Z_n ~ N(0,1)</p>
+                <p class="mt-2\"><strong>GBM special case:</strong> dS = μS dt + σS dW → S_T = S_0·exp((μ - σ²/2)T + σ√T·Z)</p>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 3: Ito's Lemma (Day 2-3)</p>
+                <p><strong>Key insight:</strong> df(X_t) = (∂f/∂t + μ∂f/∂X + σ²/2 ∂²f/∂X²)dt + σ∂f/∂X dW</p>
+                <p class=\"text-xs text-slate-400 mt-1\">Extra term σ²/2 ∂²f/∂X² comes from quadratic variation!</p>
+                <p class="mt-2\"><strong>Example:</strong> If X ~ GBM, then ln(X) ~ arithmetic BM with drift (μ - σ²/2)</p>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 4: Build Simulator (Day 3-4)</p>
+                <p><strong>Python class structure:</strong></p>
+                <pre class="text-xs bg-slate-900 p-2 rounded mt-2 overflow-auto">class BrownianMotion:
+  def simulate(self, T, N, n_paths):
+    paths = np.random.normal(...)  # Generate Z_n
+    return S_0 * exp(...)  # Exact formula for GBM</pre>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 5: Verify Moments (Day 4-5)</p>
+                <p><strong>Tests:</strong></p>
+                <ul class="list-disc list-inside mt-2 space-y-1 text-xs">
+                  <li>E[S_T] = S_0·exp(μT) (compare simulation vs theory)</li>
+                  <li>Var[ln(S_T)] = σ²T (check vol convergence)</li>
+                  <li>ln(S_T) ~ N(...) (QQ-plot should be linear)</li>
+                  <li>OU process: E[X_t]=θ, Var[X_t]=σ²/(2κ) (steady state)</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        `,
+        resources: [
+          { label: "Shreve Vol II", url: sourceUrls.shreve },
+          { label: "MIT Ito Calculus", url: sourceUrls.mitVideos },
+          { label: "numpy/scipy", url: sourceUrls.pypi }
+        ]
+      },
+      {
+        month: 3,
+        monthTitle: "Derivatives and Stochastic Processes",
+        monthSubtitle: "Learn no-arbitrage, diffusion, Ito calculus, PDE pricing, and Monte Carlo.",
+        week: 11,
+        focus: "Black-Scholes PDE, risk-neutral valuation, Greeks, finite differences",
+        description: "The Black-Scholes model combines no-arbitrage with Brownian motion. The result is a PDE that can be solved in closed form for European options. Learn the math and intuition.",
+        analogy: "Heat equation: the Black-Scholes transform turns option value into a diffusion problem. Boundary conditions encode the contract.",
+        outcomes: [
+          "Derive the Black-Scholes formula from the PDE using risk-neutral valuation",
+          "Compute Greeks (delta, gamma, vega, theta, rho) and understand their use in hedging and risk management",
+          "Solve the BS PDE using the Crank-Nicolson finite-difference method for non-standard payoffs",
+          "Spot the assumptions of BS (constant vol, no dividends, liquid markets) and when they break"
+        ],
+        task: "Build a European option pricer three ways: closed-form Black-Scholes, Monte Carlo, and Crank-Nicolson finite difference. Compare error, speed, and Greek stability.",
+        detailed: `
+          <div class="mt-4 border-t border-slate-600 pt-4">
+            <h4 class="text-sm font-bold text-sky-300 mb-3">📚 DETAILED LEARNING SEQUENCE:</h4>
+            
+            <div class="space-y-4 text-sm text-slate-200">
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 1: Black-Scholes Derivation (Day 1)</p>
+                <p><strong>Hull Ch. 13:</strong> "The Black-Scholes Model" (Pages 299-340)</p>
+                <p class="text-xs text-slate-400 mt-1\">Key: Replicating portfolio eliminates risk → riskless hedge → PDE</p>
+                <p class="mt-2\"><strong>Formula:</strong> C = S·N(d₁) - K·e^(-rT)·N(d₂) where d₁,d₂ = [ln(S/K) ± (r + σ²/2)T] / (σ√T)</p>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2\">Step 2: Greeks and Risk (Day 2)</p>
+                <p><strong>Compute all Greeks:</strong></p>
+                <ul class=\"list-disc list-inside text-xs space-y-1\">
+                  <li>Δ = ∂C/∂S = N(d₁) (hedge ratio)</li>
+                  <li>Γ = ∂²C/∂S² = φ(d₁)/(S·σ√T) (convexity)</li>
+                  <li>Θ = ∂C/∂t ≈ -S·φ(d₁)·σ/(2√T) (time decay)</li>
+                  <li>Vega = ∂C/∂σ = S·φ(d₁)·√T (vol sensitivity)</li>\n                </ul>
+              </div>
+              <div class=\"bg-slate-800/50 p-3 rounded\">
+                <p class=\"font-semibold text-white mb-2\">Step 3: Three Pricing Methods (Day 2-4)</p>
+                <p><strong>Method 1 - Closed-form:</strong> numpy.exp + scipy.stats.norm → instant, exact</p>
+                <p class=\"text-xs text-slate-400 mt-1\">Method 2 - Monte Carlo: Simulate GBM paths → avg payoff → discounted</p>
+                <p class=\"text-xs text-slate-400 mt-1\">Method 3 - Crank-Nicolson: Discretize PDE in (S,t) → tridiagonal solve</p>
+              </div>
+              <div class=\"bg-slate-800/50 p-3 rounded\">
+                <p class=\"font-semibold text-white mb-2\">Step 4: Compare & Benchmark (Day 4-5)</p>
+                <p><strong>Metrics:</strong> Absolute error, Greeks stability (bump vs analytic), wall-clock time</p>
+                <ul class=\"list-disc list-inside mt-2 space-y-1 text-xs\">
+                  <li>BS (closed) should be <1 μs per price (reference)</li>
+                  <li>MC needs 10k+ paths for 1-2 decimal accuracy</li>
+                  <li>FD is stable but slower; verify Greeks match BS</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        `,
+        resources: [
+          { label: "Hull Ch.13", url: sourceUrls.hull },
+          { label: "Shreve Pricing", url: sourceUrls.shreve },
+          { label: "MIT 18.S096 L11", url: sourceUrls.mitVideos }
+        ]
+      },
+      {
+        month: 3,
+        monthTitle: "Derivatives and Stochastic Processes",
+        monthSubtitle: "Learn no-arbitrage, diffusion, Ito calculus, PDE pricing, and Monte Carlo.",
+        week: 12,
+        focus: "Monte Carlo pricing: variance reduction, path dependence, Greeks by simulation",
+        description: "For complex contracts (American options, basket options, path-dependent exotics), you can't solve the PDE in closed form. Monte Carlo samples the price distribution by simulating many paths.",
+        analogy: "Path integrals: price is an expectation over all admissible paths. Monte Carlo samples the path ensemble instead of solving the PDE directly.",
+        outcomes: [
+          "Implement basic Monte Carlo pricing and understand convergence (error ~ 1/sqrt(N))",
+          "Use antithetic variates and control variates to reduce variance and reach accurate prices with fewer samples",
+          "Price Asian options (average of prices), barrier options (knock-out, knock-in), and lookback options (max/min of path)",
+          "Compute Greeks by re-simulation (bumping) and through pathwise derivatives"
+        ],
+        task: "Create a vectorized Monte Carlo library for Asian, barrier, and lookback options with antithetic variates, control variates, confidence intervals, and seed-stable tests.",
+        detailed: `
+          <div class="mt-4 border-t border-slate-600 pt-4">
+            <h4 class="text-sm font-bold text-sky-300 mb-3">📚 DETAILED LEARNING SEQUENCE:</h4>
+            
+            <div class="space-y-4 text-sm text-slate-200">
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 1: Basic MC Setup (Day 1)</p>
+                <p><strong>Glasserman "Monte Carlo Methods in Financial Engineering" Ch. 1:</strong> "Fundamentals" (Pages 1-50)</p>
+                <p class="text-xs text-slate-400 mt-1">Price = E[discounted payoff] ≈ (1/N)·Σ payoff(path_i)</p>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 2: Variance Reduction Techniques (Day 1-2)</p>
+                <p><strong>Antithetic variates:</strong> For each Z, also use -Z → correlates payoffs, reduces variance</p>
+                <p class="text-xs text-slate-400 mt-1">Control variates: price both "exotic" and "European" on same paths → use correlation to reduce var</p>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 3: Path-Dependent Options (Day 2-3)</p>
+                <p><strong>Asian:</strong> Payoff = max(avg(S) - K, 0) (average price over period)</p>
+                <p class="text-xs text-slate-400 mt-1">Barrier: Payoff = [call if max(S) < H, else 0] (knock-out call)</p>
+                <p class=\"text-xs text-slate-400 mt-1\">Lookback: Payoff = max(S) - K (max over path)</p>
+              </div>
+              <div class=\"bg-slate-800/50 p-3 rounded\">
+                <p class=\"font-semibold text-white mb-2\">Step 4: Implement Library (Day 3-4)</p>
+                <p><strong>Class: OptionMC(option_type, S, K, r, sigma, T)</strong></p>
+                <pre class=\"text-xs bg-slate-900 p-2 rounded mt-2 overflow-auto\">def price(self, n_paths, use_antithetic=True, use_control=True):
+  paths = self.generate_gbm_paths(n_paths)
+  payoffs = self.compute_payoff(paths)
+  if use_antithetic: payoffs = (payoffs + neg_payoffs) / 2
+  price = np.mean(payoffs) * np.exp(-self.r * self.T)
+  return price, np.std(payoffs) / np.sqrt(n_paths)</pre>
+              </div>
+              <div class=\"bg-slate-800/50 p-3 rounded\">
+                <p class=\"font-semibold text-white mb-2\">Step 5: Validation & Benchmarks (Day 4-5)</p>
+                <p><strong>Tests:</strong></p>
+                <ul class=\"list-disc list-inside mt-2 space-y-1 text-xs\">
+                  <li>Asian call should be cheaper than vanilla European</li>
+                  <li>Barrier call (H > S₀) cheaper than vanilla</li>
+                  <li>Lookback more expensive than vanilla</li>
+                  <li>With antithetic: converge to true price 2x faster</li>\n                </ul>
+              </div>
+            </div>
+          </div>
+        `,
+        resources: [
+          { label: "Glasserman MC", url: sourceUrls.glasserman },
+          { label: "MIT Numerical Finance", url: sourceUrls.mit2024 },
+          { label: "Hull Exotics", url: sourceUrls.hull }
+        ]
+      },
+      {
+        month: 4,
+        monthTitle: "Microstructure and Execution",
+        monthSubtitle: "Move from daily bars to order books, transaction costs, and event-driven systems.",
+        week: 13,
+        focus: "Limit order books: order types, matching, queues, spread, depth, market orders",
+        description: "Prices don't just exist — they are built by a continuous auction. Learn how limit order books work, how orders are matched, and how your execution speed affects the price you get.",
+        analogy: "Granular gas and particle collisions: orders arrive, collide, cancel, and transfer momentum to price through local queue interactions.",
+        outcomes: [
+          "Understand FIFO queues: a new limit order goes to the back of the queue and waits for earlier orders to fill",
+          "Compute the spread (difference between best bid and ask) and understand what drives it",
+          "Simulate order-book dynamics: watch how market orders consume liquidity and move prices",
+          "Build logic to detect and avoid toxic order flow (orders designed to harm counterparties)"
+        ],
+        task: "Write a C++ or Python matching engine with limit, market, cancel, and modify events. Add FIFO queues, trade prints, top-of-book snapshots, and invariant tests.",
+        detailed: `
+          <div class="mt-4 border-t border-slate-600 pt-4">
+            <h4 class="text-sm font-bold text-sky-300 mb-3">📚 DETAILED LEARNING SEQUENCE:</h4>
+            
+            <div class="space-y-4 text-sm text-slate-200">
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 1: Order Types & FIFO (Day 1)</p>
+                <p><strong>O'Hara "Market Microstructure Theory":</strong> Ch. 2 "Information Asymmetry Models" (Pages 30-70)</p>
+                <p class="text-xs text-slate-400 mt-1">Limit: price limit + qty; Market: marketable order; Cancel: remove; Modify: change price/qty</p>
+                <p class="mt-2"><strong>Key rule:</strong> Limit orders queue at price level, processed FIFO when price level reached</p>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 2: Matching Engine Logic (Day 2)</p>
+                <p><strong>Pseudocode:</strong></p>
+                <pre class="text-xs bg-slate-900 p-2 rounded mt-2 overflow-auto">On LIMIT order arrival:
+  Match against opposite side while possible
+  Add remaining qty to order book
+On MARKET order:
+  Iterate opposite side FIFO, fill qty
+  Unexecuted qty: reject or IoC
+On CANCEL:
+  Find order ID, remove from queue</pre>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 3: Build Data Structures (Day 2-3)</p>
+                <p><strong>Python class:</strong></p>
+                <ul class="list-disc list-inside mt-2 space-y-1 text-xs">
+                  <li>OrderBook: dict of price_level → FIFO deque of orders</li>
+                  <li>Trade record: [time, price, qty, buyer_id, seller_id]</li>
+                  <li>best_bid, best_ask: current levels</li>
+                </ul>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 4: Implement & Test (Day 3-4)</p>
+                <p><strong>Events to handle:</strong> Add limit, add market, cancel, modify, snapshots at time T</p>
+                <p class="text-xs text-slate-400 mt-1">Invariant tests: total bid qty = total ask qty (except at bid/ask), no trades at wrong price</p>
+              </div>
+            </div>
+          </div>
+        `,
+        resources: [
+          { label: "O'Hara Microstructure", url: "https://openlibrary.org/books/OL1103097M/Market_microstructure_theory" },
+          { label: "MIT Microstructure", url: sourceUrls.mitVideos },
+          { label: "Cartea HFT", url: sourceUrls.cartea }
+        ]
+      },
+      {
+        month: 4,
+        monthTitle: "Microstructure and Execution",
+        monthSubtitle: "Move from daily bars to order books, transaction costs, and event-driven systems.",
+        week: 14,
+        focus: "Transaction costs: spread, slippage, temporary/permanent impact, Almgren-Chriss",
+        description: "When you trade, you pay a cost: the bid-ask spread, and market impact (you push the price further against you). Learn to optimize execution to minimize total cost.",
+        analogy: "Friction and viscosity: moving through a liquid market still dissipates energy. Faster execution increases impact; slower execution increases uncertainty.",
+        outcomes: [
+          "Decompose execution costs: spread, timing risk (price moves before you're filled), and impact (your order moves prices)",
+          "Simulate trade trajectories: TWAP (time-weighted average price), VWAP (volume-weighted), and optimal execution paths",
+          "Understand the speed-impact tradeoff: rushing incurs high impact cost; waiting incurs timing risk",
+          "Measure implementation shortfall in backtests and live trading"
+        ],
+        task: "Build a transaction-cost analysis module. Simulate execution schedules, estimate implementation shortfall, and compare TWAP, VWAP, and risk-aware trajectories.",
+        detailed: `
+          <div class="mt-4 border-t border-slate-600 pt-4">
+            <h4 class="text-sm font-bold text-sky-300 mb-3">📚 DETAILED LEARNING SEQUENCE:</h4>
+            
+            <div class="space-y-4 text-sm text-slate-200">
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 1: Cost Decomposition (Day 1)</p>
+                <p><strong>Cartea "Algorithmic and High-Frequency Trading":</strong> Ch. 2 "Optimal Execution" (Pages 20-60)</p>
+                <p class="text-xs text-slate-400 mt-1">Total Cost = Spread Cost + Timing Risk + Market Impact</p>
+                <p class="mt-2\"><strong>Spread:</strong> One-way spread cost when crossed; Timing Risk: price moves BEFORE you're filled; Impact: your order moves price AGAINST you</p>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 2: TWAP vs VWAP Strategies (Day 2)</p>
+                <p><strong>TWAP:</strong> Execute qty uniformly over time interval → spreads cost evenly → high impact</p>
+                <p class="text-xs text-slate-400 mt-1\">VWAP: Aliquot execution qty to market volume profile → cheaper if vol is steady</p>
+                <p class=\"mt-2\"><strong>Algorithm:</strong> target_qty[t] = (VWAP_volume[0:t] / VWAP_volume[0:T]) * total_qty</p>
+              </div>
+              <div class=\"bg-slate-800/50 p-3 rounded\">
+                <p class=\"font-semibold text-white mb-2\">Step 3: Implement Execution Sim (Day 2-3)</p>
+                <p><strong>Model:</strong></p>
+                <pre class=\"text-xs bg-slate-900 p-2 rounded mt-2 overflow-auto\">for step in execution_schedule:
+  # Spread cost
+  cost += mid_price * spread_bps
+  # Timing risk: price drifts
+  mid_price += sqrt(var) * random.normal()
+  # Market impact: larger order = larger impact
+  impact = alpha * (qty_step / vol_step)
+  mid_price += impact * np.sign(side)
+  # Execution at impacted price
+  filled_price = mid_price + spread/2
+  total_cost += qty_step * filled_price</pre>
+              </div>
+              <div class=\"bg-slate-800/50 p-3 rounded\">
+                <p class=\"font-semibold text-white mb-2\">Step 4: Measure Implementation Shortfall (Day 3-4)</p>
+                <p><strong>Definition:</strong> IS = (Execution Price - Arrival Midpoint) * Qty</p>
+                <p class=\"text-xs text-slate-400 mt-1\">Compare: TWAP shortfall vs VWAP vs optimal (Almgren-Chriss)</p>
+                <p class=\"mt-2\"><strong>Benchmark:</strong> Optimal often 20-40% better than TWAP/VWAP on stable-vol days</p>
+              </div>
+            </div>
+          </div>
+        `,
+        resources: [
+          { label: "Cartea HFT", url: sourceUrls.cartea },
+          { label: "Chan Execution", url: sourceUrls.chan },
+          { label: "Almgren SIAM 2003", url: sourceUrls.academic }
+        ]
+      },
+      {
+        month: 4,
+        monthTitle: "Microstructure and Execution",
+        monthSubtitle: "Move from daily bars to order books, transaction costs, and event-driven systems.",
+        week: 15,
+        focus: "Order-flow imbalance, microprice, queue position, short-horizon prediction",
+        description: "The next price move is influenced by the current queue imbalance: when there are more buy orders waiting than sell orders, the next tick tends to move up. This is edge on microsecond timescales.",
+        analogy: "Pressure gradients: imbalance between bid and ask queues creates a local force field. Microprice estimates where pressure wants the next tick to move.",
+        outcomes: [
+          "Compute order-flow imbalance from order-book snapshots",
+          "Estimate the microprice: the volume-weighted midpoint that predicts the next trade",
+          "Use queue position to estimate your likelihood of being filled and at what price",
+          "Build a classifier to predict the next tick direction from order-flow and microstructure features"
+        ],
+        task: "Replay order-book events, compute order-flow imbalance and microprice, then train a calibrated classifier for next-tick direction with realistic latency and costs.",
+        detailed: `
+          <div class="mt-4 border-t border-slate-600 pt-4">
+            <h4 class="text-sm font-bold text-sky-300 mb-3">📚 DETAILED LEARNING SEQUENCE:</h4>
+            
+            <div class="space-y-4 text-sm text-slate-200">
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 1: Order-Flow Imbalance (Day 1)</p>
+                <p><strong>Formula:</strong> Imbalance_t = (Qty at best bid - Qty at best ask) / Total qty at top 5 levels</p>
+                <p class="text-xs text-slate-400 mt-1">Range: -1 to +1; +1 = all liquidity on bid (expect up move); -1 = all on ask (expect down)</p>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 2: Microprice (Day 1-2)</p>
+                <p><strong>Definition:</strong> Volume-weighted midpoint considering queue depth</p>
+                <p class="text-xs text-slate-400 mt-1">microprice = (bid*qty_ask_side + ask*qty_bid_side) / (qty_bid_side + qty_ask_side)</p>
+                <p class="mt-2"><strong>Insight:</strong> Microprice predicts the next trade better than simple midpoint (especially on imbalanced books)</p>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 3: Feature Engineering (Day 2-3)</p>
+                <p><strong>Microstructure features to compute:</strong></p>
+                <ul class="list-disc list-inside mt-2 space-y-1 text-xs">
+                  <li>Order-flow imbalance (top 1/5/10 levels)</li>
+                  <li>Spread width (basis points)</li>
+                  <li>Order queue length at best (relative position in queue)</li>
+                  <li>Volume VWAP over last N updates</li>
+                  <li>Bid-ask size asymmetry</li>
+                  <li>Recent trade direction momentum</li>
+                </ul>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 4: Train Next-Tick Classifier (Day 3-4)</p>
+                <p><strong>Label:</strong> y = +1 if next trade price > microprice, -1 otherwise</p>
+                <p class="text-xs text-slate-400 mt-1">Model: Logistic regression or LightGBM on features computed from order book state</p>
+                <p class="mt-2\"><strong>Validation:</strong> Walk-forward with embargo windows (don't train on data close to test dates)</p>
+              </div>
+              <div class=\"bg-slate-800/50 p-3 rounded\">
+                <p class=\"font-semibold text-white mb-2\">Step 5: Deploy & Backtest (Day 4-5)</p>
+                <p><strong>Strategy:</strong> If classifier predicts +1 with high confidence, place small buy market order</p>
+                <p class=\"text-xs text-slate-400 mt-1\">Track: Realized edge (% profitable trades), Sharpe, latency impact (how long does feedback take?)</p>
+                <p class=\"mt-2\"><strong>Realistic constraints:</strong> Latency (order takes 50μs to reach exchange), tick size, spread costs</p>
+              </div>
+            </div>
+          </div>
+        `,
+        resources: [
+          { label: "Market Liquidity", url: sourceUrls.liquidity },
+          { label: "Jansen Intraday", url: sourceUrls.jansen },
+          { label: "Prado AFML", url: sourceUrls.prado }
+        ]
+      },
+      {
+        month: 4,
+        monthTitle: "Microstructure and Execution",
+        monthSubtitle: "Move from daily bars to order books, transaction costs, and event-driven systems.",
+        week: 16,
+        focus: "Event-driven trading architecture: data, signal, portfolio, execution, broker simulation",
+        description: "A real trading system is a pipeline: market data → signals → portfolio logic → order routing → execution → fills → risk checks → accounting. Build the full loop.",
+        analogy: "Feedback control systems: a trading system senses state, estimates hidden variables, chooses control actions, then receives noisy delayed feedback.",
+        outcomes: [
+          "Design an event queue that processes market data, signal updates, and fill notifications in order",
+          "Manage portfolio state: keep track of positions, cash, and exposure across assets",
+          "Implement order routing: convert target positions into actual orders considering current fills and costs",
+          "Add risk checks: circuit breakers, position limits, and drawdown stops",
+          "Write integration tests that can replay historical data and verify correct behavior"
+        ],
+        task: "Build an event-driven paper-trading engine with event queues, portfolio state, order routing, fills, risk checks, logs, and replayable integration tests.",
+        detailed: `
+          <div class="mt-4 border-t border-slate-600 pt-4">
+            <h4 class="text-sm font-bold text-sky-300 mb-3">📚 DETAILED LEARNING SEQUENCE:</h4>
+            
+            <div class="space-y-4 text-sm text-slate-200">
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 1: Architecture Overview (Day 1)</p>
+                <p><strong>Chan "Quantitative Trading" Ch. 9:</strong> "System Implementation" (Pages 280-330)</p>
+                <p class="text-xs text-slate-400 mt-1">Pipeline: [Data Source] → [Signal] → [Portfolio] → [Execution] → [Fills] → [Accounting]</p>
+                <p class="mt-2"><strong>Key design:</strong> Event-driven (async), fully logged, deterministic/replayable</p>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 2: Event Queue & Dispatcher (Day 1-2)</p>
+                <p><strong>Events:</strong> MarketData, SignalUpdate, OrderFill, RiskAlert, CancelOrder</p>
+                <p class="text-xs text-slate-400 mt-1\">Dispatcher loops: pop event → route to handler → update state → emit new events</p>
+                <p class=\"mt-2\"><strong>Order guarantee:</strong> Replay same seed, same event sequence, same trades</p>
+              </div>
+              <div class=\"bg-slate-800/50 p-3 rounded\">
+                <p class=\"font-semibold text-white mb-2\">Step 3: Portfolio State Management (Day 2-3)</p>
+                <p><strong>Maintain:</strong></p>
+                <ul class=\"list-disc list-inside mt-2 space-y-1 text-xs\">
+                  <li>positions[symbol] = {qty, avg_price, unrealized_pnl}</li>
+                  <li>open_orders[order_id] = {symbol, side, qty, price, status}</li>
+                  <li>cash = starting_capital + realized_pnl - deployed_capital</li>
+                  <li>portfolio_value = sum(positions * current_price) + cash</li>
+                </ul>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 4: Order Routing & Risk Checks (Day 3-4)</p>
+                <p><strong>Flow:</strong> Target positions → compute changes → apply limits → submit orders</p>
+                <ul class="list-disc list-inside mt-2 space-y-1 text-xs">
+                  <li>Max position size: {symbol: max_notional}</li>
+                  <li>Max leverage: portfolio_notional / cash ≤ limit</li>
+                  <li>Drawdown stops: max_loss_pct = 5% → close all if hit</li>
+                </ul>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 5: Integration Tests (Day 4-5)</p>
+                <p><strong>Test scenarios:</strong></p>
+                <ul class="list-disc list-inside mt-2 space-y-1 text-xs">
+                  <li>Single buy/sell: verify position, cash, pnl</li>
+                  <li>Partial fills: orders split across multiple ticks</li>
+                  <li>Risk breach: drawdown hit, verify positions closed</li>
+                  <li>Replay: save event log, replay seed, verify identical trades</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        `,
+        resources: [
+          { label: "Chan Ch.9", url: sourceUrls.chan },
+          { label: "pyfolio", url: sourceUrls.pyfolio },
+          { label: "GA Tech ML4T", url: sourceUrls.gatech }
+        ]
+      },
+      {
+        month: 5,
+        monthTitle: "Financial ML",
+        monthSubtitle: "Apply ML with finance-native labels, validation, features, and model risk controls.",
+        week: 17,
+        focus: "Financial ML labeling: triple barrier, meta-labeling, purged CV, embargo",
+        description: "Standard ML treats all samples as exchangeable. Financial data is a time series, and leaking future information is invisible in standard cross-validation. Learn the right way to label and validate.",
+        analogy: "Causal cones in relativity: labels cannot depend on information outside the observation cone. Leakage violates the geometry of time.",
+        outcomes: [
+          "Understand the triple-barrier labeling method: label as UP/DOWN/NEUTRAL based on which barrier is touched first",
+          "Implement purged k-fold cross-validation: ensure train/test sets don't overlap in time and don't see events from the same day",
+          "Add embargo windows: don't train on data near test dates to avoid lookahead bias from correlated order flow",
+          "Meta-label: train a secondary model to refine signals from a base model"
+        ],
+        task: "Implement triple-barrier labeling, event sampling, purged k-fold cross-validation, embargo windows, and a leakage test suite for supervised trading labels.",
+        detailed: `
+          <div class="mt-4 border-t border-slate-600 pt-4">
+            <h4 class="text-sm font-bold text-sky-300 mb-3">📚 DETAILED LEARNING SEQUENCE:</h4>
+            
+            <div class="space-y-4 text-sm text-slate-200">
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 1: Triple-Barrier Method (Day 1)</p>
+                <p><strong>Prado "Advances in Financial Machine Learning" Ch. 3:</strong> "Labeling" (Pages 50-90)</p>
+                <p class="text-xs text-slate-400 mt-1">Method: Set price barriers at +target_pct and -target_pct; label when ANY barrier is touched first</p>
+                <p class="mt-2\"><strong>Labels:</strong> +1 (up barrier first), -1 (down barrier), 0 (time limit hit before any barrier)</p>
+              </div>
+              <div class=\"bg-slate-800/50 p-3 rounded\">
+                <p class=\"font-semibold text-white mb-2\">Step 2: Purged K-Fold CV (Day 2)</p>
+                <p><strong>Standard CV is wrong for time series!</strong> It allows train/test overlap → leakage</p>
+                <p class=\"text-xs text-slate-400 mt-1\">Purged: Remove train data within [test_start - embargo_window, test_end + embargo_window]</p>
+                <p class=\"mt-2\"><strong>Reason:</strong> Correlated order flow means adjacent periods have information leakage</p>
+              </div>
+              <div class=\"bg-slate-800/50 p-3 rounded\">
+                <p class=\"font-semibold text-white mb-2\">Step 3: Implement Test Suite (Day 2-3)</p>
+                <p><strong>Leakage tests:</strong></p>
+                <ul class=\"list-disc list-inside mt-2 space-y-1 text-xs\">
+                  <li>□ Labels use ONLY price/vol available at observation time (no future data)</li>
+                  <li>□ Train set temporally before test set (no time overlap)</li>\n                  <li>□ Embargo window ≥ lookback window (no correlated events)</li>
+                  <li>□ Train on fold 0, test on fold 1 (not random shuffle)</li>
+                </ul>
+              </div>
+              <div class=\"bg-slate-800/50 p-3 rounded\">
+                <p class=\"font-semibold text-white mb-2\">Step 4: Build Label Factory (Day 3-4)</p>
+                <p><strong>Function signatures:</strong></p>
+                <pre class=\"text-xs bg-slate-900 p-2 rounded mt-2 overflow-auto\">labels = triple_barrier(prices, target_up, target_dn, max_time_steps)
+# Returns: array of +1/-1/0 for each observation
+
+train_idx, test_idx = purged_kfold_split(n_samples, embargo_pct=0.05, folds=5)
+# Returns: fold indices with embargo windows</pre>
+              </div>
+              <div class=\"bg-slate-800/50 p-3 rounded\">
+                <p class=\"font-semibold text-white mb-2\">Step 5: Validate on Real Data (Day 4-5)</p>
+                <p><strong>Test:</strong> Train model with wrong CV → inflated Sharpe (e.g., 5.0); train with purged CV → realistic Sharpe (e.g., 1.2)</p>
+                <p class=\"text-xs text-slate-400 mt-1\">Report: Sharpe ratio degradation factor (wrong/right CV ratio) as a measure of how much data leaked</p>
+              </div>
+            </div>
+          </div>
+        `,
+        resources: [
+          { label: "Prado AFML Ch.3", url: sourceUrls.prado },
+          { label: "mlfinlab", url: sourceUrls.mlfinlab },
+          { label: "sklearn model_selection", url: sourceUrls.sklearn }
+        ]
+      },
+      {
+        month: 5,
+        monthTitle: "Financial ML",
+        monthSubtitle: "Apply ML with finance-native labels, validation, features, and model risk controls.",
+        week: 18,
+        focus: "Alpha factors: technical, statistical, cross-sectional, alternative data, IC decay",
+        description: "An alpha factor is any feature that predicts future returns. Build a library: momentum, mean-reversion, volatility, volume, sentiment, etc. Measure which ones actually work.",
+        analogy: "Order parameters: a good feature compresses high-dimensional market state into a scalar that tracks a latent phase of behavior.",
+        outcomes: [
+          "Compute technical factors: momentum (price change), mean-reversion (anti-momentum), volatility, volume rate of change",
+          "Compute statistical factors: skew, kurtosis, tail risk measures from return distributions",
+          "Neutralize factors: remove market, sector, and other known-factor exposures to isolate pure alpha",
+          "Measure information coefficient (IC) decay: how quickly does a factor's predictive power fade",
+          "Estimate factor capacity: at what asset-base size does capacity run out due to market impact"
+        ],
+        task: "Build a factor library and evaluation harness: z-scoring, neutralization, information coefficient, quantile returns, turnover, decay curves, and capacity notes.",
+        detailed: `
+          <div class="mt-4 border-t border-slate-600 pt-4">
+            <h4 class="text-sm font-bold text-sky-300 mb-3">📚 DETAILED LEARNING SEQUENCE:</h4>
+            
+            <div class="space-y-4 text-sm text-slate-200">
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 1: Factor Taxonomy (Day 1)</p>
+                <p><strong>Jansen "ML4T" Ch. 7:</strong> "Factor Research" (Pages 200-250)</p>
+                <p class="text-xs text-slate-400 mt-1">Categories: Momentum (price trend), Reversion (anti-trend), Volatility (vol of returns), Quality (profitability), Value (P/E ratios)</p>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 2: Factor Preprocessing (Day 1-2)</p>
+                <p><strong>Standard pipeline:</strong></p>
+                <ol class="list-decimal list-inside mt-2 space-y-1 text-xs">
+                  <li>Compute raw factor (e.g., 20-day price momentum)</li>
+                  <li>Z-score by cross-section (subtract mean, divide by std dev across universe)</li>
+                  <li>Neutralize: remove sector/market/other-factor exposures via regression</li>
+                  <li>Winsorize: cap at ±3σ (remove outliers)</li>
+                </ol>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 3: Information Coefficient (Day 2-3)</p>
+                <p><strong>Definition:</strong> IC = rank_correlation(factor_values, future_returns)</p>
+                <p class="text-xs text-slate-400 mt-1">Range: -1 to +1; useful IC ≥ 0.02; >0.05 is very strong. Measure IC decay: how fast does it go to 0 as we look further ahead?</p>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 4: Factor Testing Suite (Day 3-4)</p>
+                <p><strong>Metrics to compute:</strong></p>
+                <ul class="list-disc list-inside mt-2 space-y-1 text-xs">
+                  <li>IC and IC t-stat (is it statistically significant?)</li>
+                  <li>Quantile returns: long top 20% vs short bottom 20% → Sharpe</li>
+                  <li>Factor turnover: correlation(factor_t, factor_{t+1})</li>
+                  <li>IC decay curve: IC(1-day), IC(5-day), IC(20-day) holding periods</li>
+                  <li>Capacity estimate: at what AUM does impact kill the edge?</li>
+                </ul>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 5: Build & Publish (Day 4-5)</p>
+                <p><strong>Deliverable:</strong> Notebook with 20+ factors, IC heatmap by day-ahead/5-day/20-day, quantile plots, decay curves</p>
+                <p class="text-xs text-slate-400 mt-1">Ranking factors by IC helps prioritize which to use in final model</p>
+              </div>
+            </div>
+          </div>
+        `,
+        resources: [
+          { label: "Jansen ML4T Ch.7", url: sourceUrls.jansen },
+          { label: "GA Tech ML4T", url: sourceUrls.gatech },
+          { label: "Prado AFML", url: sourceUrls.prado }
+        ]
+      },
+      {
+        month: 5,
+        monthTitle: "Financial ML",
+        monthSubtitle: "Apply ML with finance-native labels, validation, features, and model risk controls.",
+        week: 19,
+        focus: "Supervised ML for returns: tree models, calibration, walk-forward validation",
+        description: "Build classifiers to predict whether returns will be up or down using factor features. Focus on calibration (not just accuracy) and walk-forward testing (not static backtests).",
+        analogy: "Signal processing: alpha is a weak signal embedded in nonstationary noise. Model evaluation is mostly about estimating the signal-to-noise ratio honestly.",
+        outcomes: [
+          "Train logistic regression, random forests, and gradient boosted trees on factor data",
+          "Understand calibration: a 60% prediction should be right ~60% of the time, not just accurate on average",
+          "Use walk-forward validation: retrain the model periodically on recent data, not once on all historical data",
+          "Measure feature importance and create SHAP-style explanations",
+          "Apply cost-aware thresholds: pick decision boundaries that account for transaction costs"
+        ],
+        task: "Train regularized linear models, random forests, and gradient boosting on factor data. Use walk-forward validation, calibration curves, SHAP-style diagnostics, and cost-aware thresholds.",
+        detailed: `
+          <div class="mt-4 border-t border-slate-600 pt-4">
+            <h4 class="text-sm font-bold text-sky-300 mb-3">📚 DETAILED LEARNING SEQUENCE:</h4>
+            
+            <div class="space-y-4 text-sm text-slate-200">
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 1: Model Families (Day 1)</p>
+                <p><strong>Jansen "ML4T" Ch. 5:</strong> "Machine Learning Models" (Pages 120-180)</p>
+                <p class="text-xs text-slate-400 mt-1">Linear: Logistic regression (simple, interpretable); Tree: Random forest (nonlinear, stable); Gradient boosting: XGBoost/LightGBM (strong, complex)</p>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 2: Regularization & Calibration (Day 1-2)</p>
+                <p><strong>Key insight:</strong> Accuracy ≠ calibration. A model 60% accurate should predict probability ~0.6, not just get 60% right</p>
+                <p class="text-xs text-slate-400 mt-1">Regularization: L1/L2 for linear; tree depth + min_samples for trees; early_stopping for boosting</p>
+                <p class="mt-2\"><strong>Calibration check:</strong> Predicted prob 50%-60% → actual frequency ~55% (not 40%)</p>
+              </div>
+              <div class=\"bg-slate-800/50 p-3 rounded\">
+                <p class=\"font-semibold text-white mb-2\">Step 3: Walk-Forward Validation (Day 2-3)</p>
+                <p><strong>Architecture:</strong></p>
+                <pre class=\"text-xs bg-slate-900 p-2 rounded mt-2 overflow-auto\">for fold in folds:
+  # Retrain on [fold_start : fold_start + train_len]
+  model.fit(X_train, y_train)
+  # Test on next period
+  preds = model.predict(X_test)
+  # Update held-out scores for next iteration</pre>
+                <p class=\"text-xs text-slate-400 mt-1\">Why: Mimics live trading (model ages, needs retraining); avoids static data leakage</p>
+              </div>
+              <div class=\"bg-slate-800/50 p-3 rounded\">
+                <p class=\"font-semibold text-white mb-2\">Step 4: Diagnostic Plots (Day 3-4)</p>
+                <p><strong>Essential plots:</strong></p>
+                <ul class=\"list-disc list-inside mt-2 space-y-1 text-xs\">
+                  <li>Calibration curve: predicted prob vs actual freq (should be diagonal)</li>
+                  <li>ROC/PR curves: sensitivity vs specificity tradeoff</li>
+                  <li>Feature importance: which factors drive predictions?</li>
+                  <li>SHAP values: explain individual predictions</li>
+                  <li>Prediction drift: P(y=1 | predicted_prob=0.5) changes over time → model aging</li>
+                </ul>
+              </div>
+              <div class=\"bg-slate-800/50 p-3 rounded\">
+                <p class=\"font-semibold text-white mb-2\">Step 5: Cost-Aware Thresholds (Day 4-5)</p>
+                <p><strong>Idea:</strong> Don't use 0.5 threshold. If transaction costs are 20 bps and edge is 30 bps, use 0.55 threshold</p>
+                <p class=\"text-xs text-slate-400 mt-1\">Optimization: Pick threshold that maximizes: (PnL per trade) - (costs) = f(threshold)</p>
+              </div>
+            </div>
+          </div>
+        `,
+        resources: [
+          { label: "Jansen ML4T Ch.5", url: sourceUrls.jansen },
+          { label: "GA Tech ML4T", url: sourceUrls.gatech },
+          { label: "sklearn Docs", url: sourceUrls.sklearn }
+        ]
+      },
+      {
+        month: 5,
+        monthTitle: "Financial ML",
+        monthSubtitle: "Apply ML with finance-native labels, validation, features, and model risk controls.",
+        week: 20,
+        focus: "Deep time-series models: CNNs, LSTMs, temporal attention, neural SDE intuition",
+        description: "Deep learning can capture complex temporal patterns that linear and tree models miss. But overfitting is even easier. Learn the architectures and how to validate them properly.",
+        analogy: "State-space dynamics: recurrent and attention models infer hidden state from noisy observations, similar to estimating a dynamical system from partial measurements.",
+        outcomes: [
+          "Understand how CNNs extract local patterns from time-series windows",
+          "Build LSTM networks that maintain hidden state across long sequences",
+          "Use attention mechanisms to focus on relevant timesteps",
+          "Compare deep models against linear and tree baselines with identical data splits and costs",
+          "Ablate: remove components to understand what the model actually learned"
+        ],
+        task: "Build CNN/LSTM/attention baselines for multi-asset return classification. Compare against linear and tree models with identical splits, costs, and ablation reports.",
+        detailed: `
+          <div class="mt-4 border-t border-slate-600 pt-4">
+            <h4 class="text-sm font-bold text-sky-300 mb-3">📚 DETAILED LEARNING SEQUENCE:</h4>
+            
+            <div class="space-y-4 text-sm text-slate-200">
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 1: Deep Learning Architectures (Day 1)</p>
+                <p><strong>PyTorch Tutorials (Medium):</strong> Sequence Models for Finance</p>
+                <p class="text-xs text-slate-400 mt-1">CNN: Extracts local patterns from time-windows (e.g., price action in last 20 days)</p>
+                <p class=\"text-xs text-slate-400 mt-1\">LSTM: Maintains hidden state across sequence, learns long-term dependencies</p>
+                <p class=\"text-xs text-slate-400 mt-1\">Attention: Learns which timesteps are important (e.g., large volume days)</p>
+              </div>
+              <div class=\"bg-slate-800/50 p-3 rounded\">
+                <p class=\"font-semibold text-white mb-2\">Step 2: Architecture Details (Day 1-2)</p>
+                <p><strong>CNN example:</strong></p>
+                <pre class=\"text-xs bg-slate-900 p-2 rounded mt-2 overflow-auto\">Conv1d(in_channels=k_factors, out_channels=32, kernel_size=5)
+  → ReLU → GlobalAvgPool → Dense(64) → Dense(1, sigmoid)</pre>
+                <p class=\"text-xs text-slate-400 mt-1\">LSTM: Embed(k_factors) → LSTM(hidden=64) → AttentionPool → Dense(1)</p>
+              </div>
+              <div class=\"bg-slate-800/50 p-3 rounded\">
+                <p class=\"font-semibold text-white mb-2\">Step 3: Training Protocol (Day 2-3)</p>
+                <p><strong>Keys to not overfitting:</strong></p>
+                <ul class=\"list-disc list-inside mt-2 space-y-1 text-xs\">
+                  <li>Dropout (p=0.5) on every dense layer</li>
+                  <li>Early stopping: monitor validation loss, stop if no improvement 20 epochs</li>
+                  <li>Batch normalization after conv/dense (helps training stability)</li>
+                  <li>Learning rate schedule: exponential decay or warmup+decay</li>
+                </ul>
+              </div>
+              <div class=\"bg-slate-800/50 p-3 rounded\">
+                <p class=\"font-semibold text-white mb-2\">Step 4: Baseline Comparison (Day 3-4)</p>
+                <p><strong>Experiment:</strong> Same train/test split, same factors, same costs</p>
+                <ul class=\"list-disc list-inside mt-2 space-y-1 text-xs\">
+                  <li>Model A: Logistic regression</li>
+                  <li>Model B: Random forest (tuned)</li>
+                  <li>Model C: LightGBM (tuned)</li>
+                  <li>Model D: CNN/LSTM/Attention (tuned)</li>
+                  <li>Compare: Sharpe after costs, calibration, feature importance</li>
+                </ul>
+              </div>
+              <div class=\"bg-slate-800/50 p-3 rounded\">
+                <p class=\"font-semibold text-white mb-2\">Step 5: Ablation & Interpretation (Day 4-5)</p>
+                <p><strong>Ablation tests:</strong> Remove each component, measure performance drop</p>
+                <ul class=\"list-disc list-inside mt-2 space-y-1 text-xs\">
+                  <li>Remove dropout → overfitting (high train, low test)</li>
+                  <li>Remove batch norm → training instability (higher loss)</li>
+                  <li>Use simpler LSTM (1 layer instead of 2) → faster, less accurate</li>
+                  <li>Report: Which component is essential? (Often: simpler baseline wins!)</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        `,
+        resources: [
+          { label: "Jansen Deep Learning", url: sourceUrls.jansen },
+          { label: "PyTorch Tutorials", url: sourceUrls.pytorch },
+          { label: "GA Tech ML4T", url: sourceUrls.gatech }
+        ]
+      },
+      {
+        month: 6,
+        monthTitle: "Advanced AI and Production",
+        monthSubtitle: "Use graph learning, reinforcement learning, NLP, and production discipline without losing statistical rigor.",
+        week: 21,
+        focus: "GNNs in finance: correlation graphs, supply-chain graphs, sector graphs, relational alpha",
+        description: "Assets don't trade in isolation. They are connected through supply chains, sectors, and correlations. Graph neural networks can capture these relationships and predict which stocks move together.",
+        analogy: "Lattice systems and coupled oscillators: assets are not independent particles; shocks propagate through edges, sectors, exposures, and liquidity channels.",
+        outcomes: [
+          "Construct dynamic asset graphs: nodes are stocks, edges are sector/correlation relationships",
+          "Use graph convolutions to aggregate information from neighboring nodes (sectors, peers)",
+          "Train a GNN to predict which asset will outperform its sector given sector-level and peer features",
+          "Backtest GNN signals against non-relational baselines"
+        ],
+        task: "Construct rolling asset graphs from correlations and sector metadata. Train a graph model for cross-sectional ranking, then compare it to non-graph baselines and sector-neutral factors.",
+        detailed: `
+          <div class="mt-4 border-t border-slate-600 pt-4">
+            <h4 class="text-sm font-bold text-sky-300 mb-3">📚 DETAILED LEARNING SEQUENCE:</h4>
+            
+            <div class="space-y-4 text-sm text-slate-200">
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 1: Graph Representation (Day 1)</p>
+                <p><strong>Concept:</strong> Nodes = stocks; Edges = correlation, sector membership, supply chain</p>
+                <p class="text-xs text-slate-400 mt-1">Example: If Stock A and B have correlation > 0.5, draw edge. If A and C are same sector, draw edge.</p>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 2: Graph Neural Networks (Day 1-2)</p>
+                <p><strong>PyTorch Geometric tutorial:</strong> Message passing framework</p>
+                <p class="text-xs text-slate-400 mt-1">GCN layer: h'_i = σ(W·mean_neighborhood(h_j))</p>
+                <p class="mt-2"><strong>Interpretation:</strong> Each node aggregates features from neighbors (peer stocks) → learns sector dynamics</p>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 3: Build Graph Dataset (Day 2-3)</p>
+                <p><strong>Monthly graph construction:</strong></p>
+                <ol class="list-decimal list-inside mt-2 space-y-1 text-xs">
+                  <li>Compute rolling 60-day correlations between all pairs</li>
+                  <li>Add edges where corr > 0.3 (tunable threshold)</li>
+                  <li>Add node features: momentum, volatility, sector code</li>
+                  <li>Label: next month return (for supervised ranking)</li>
+                </ol>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 4: Train GNN (Day 3-4)</p>
+                <p><strong>Architecture:</strong> GCN(32) → GCN(32) → Linear(output=1) → sigmoid</p>
+                <p class="text-xs text-slate-400 mt-1">Training: Cross-entropy loss on up/down labels, validate on held-out month</p>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 5: Compare to Baselines (Day 4-5)</p>
+                <p><strong>Baselines:</strong> Linear factor model (no edges), XGBoost (all node features), sector momentum (no edges)</p>
+                <p class="text-xs text-slate-400 mt-1">Hypothesis: GNN learns sector momentum propagation better than simple features</p>
+              </div>
+            </div>
+          </div>
+        `,
+        resources: [
+          { label: "PyTorch Geometric", url: sourceUrls.pyg },
+          { label: "GCN Paper 2017", url: sourceUrls.arxivGnn },
+          { label: "Jansen ML4T", url: sourceUrls.jansen }
+        ]
+      },
+      {
+        month: 6,
+        monthTitle: "Advanced AI and Production",
+        monthSubtitle: "Use graph learning, reinforcement learning, NLP, and production discipline without losing statistical rigor.",
+        week: 22,
+        focus: "Reinforcement learning: portfolio control, execution, reward design, offline evaluation",
+        description: "Instead of predicting returns and then using a fixed portfolio rule, use RL to learn a policy that adapts to market state. The challenge: designing rewards that don't incentivize recklessness.",
+        analogy: "Hamilton-Jacobi-Bellman control: RL is stochastic control with function approximation. The hard part is defining a reward that does not teach reckless behavior.",
+        outcomes: [
+          "Build a Gym-style trading environment: action = position size, observation = market state, reward = P&L",
+          "Train DQN (deep Q-learning) and policy gradients to learn position-sizing rules",
+          "Understand reward shaping: design intermediate rewards that discourage overleveraging and excessive turnover",
+          "Evaluate policies in simulation and on walk-forward test data",
+          "Understand why offline RL (learning from historical logs) is crucial for financial systems"
+        ],
+        task: "Create a Gym-style trading environment for position sizing or execution. Train tabular, DQN, and policy-gradient baselines; evaluate against static rules under transaction costs.",
+        detailed: `
+          <div class="mt-4 border-t border-slate-600 pt-4">
+            <h4 class="text-sm font-bold text-sky-300 mb-3">📚 DETAILED LEARNING SEQUENCE:</h4>
+            
+            <div class="space-y-4 text-sm text-slate-200">
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 1: Gym Environment Setup (Day 1)</p>
+                <p><strong>Reference:</strong> OpenAI Gym environment design</p>
+                <p class="text-xs text-slate-400 mt-1">State: Market features (prices, volumes, factors); Action: position size ∈ [-1, 1]; Reward: daily P&L - transaction_costs</p>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 2: Reward Shaping (Day 1-2)</p>
+                <p><strong>Naive reward:</strong> daily_pnl (encourages recklessness)</p>
+                <p class="text-xs text-slate-400 mt-1">Better reward: daily_pnl - 0.01·|position_change|² - 0.001·leverage_penalty</p>
+                <p class=\"mt-2\"><strong>Why:</strong> Penalize excessive turnover and leverage to learn stable policies</p>
+              </div>
+              <div class=\"bg-slate-800/50 p-3 rounded\">
+                <p class=\"font-semibold text-white mb-2\">Step 3: Train RL Policies (Day 2-3)</p>
+                <p><strong>Algorithms:</strong></p>
+                <ul class=\"list-disc list-inside mt-2 space-y-1 text-xs\">
+                  <li>Tabular Q-learning: discretize state, learn lookup table</li>
+                  <li>DQN: use neural net to approximate Q-values</li>
+                  <li>Policy Gradient (A3C, PPO): directly learn policy π(action | state)</li>
+                </ul>
+              </div>
+              <div class=\"bg-slate-800/50 p-3 rounded\">
+                <p class=\"font-semibold text-white mb-2\">Step 4: Implement & Benchmark (Day 3-4)</p>
+                <p><strong>Baseline comparison:</strong></p>
+                <ul class=\"list-disc list-inside mt-2 space-y-1 text-xs\">
+                  <li>Policy 0: Always neutral (position=0)</li>
+                  <li>Policy 1: Fixed leverage (always 0.5 long)</li>
+                  <li>Policy 2-4: RL-trained (tabular, DQN, PPO)</li>
+                  <li>Metrics: Sharpe, Max DD, realized vol, turnover</li>
+                </ul>
+              </div>
+              <div class=\"bg-slate-800/50 p-3 rounded\">
+                <p class=\"font-semibold text-white mb-2\">Step 5: Offline Evaluation (Day 4-5)</p>
+                <p><strong>Critical:</strong> Test on data NEVER seen during training</p>
+                <p class=\"text-xs text-slate-400 mt-1\">Sanity check: policy trained on 2015-2018 should also work on 2021-2022</p>
+                <p class=\"mt-2\"><strong>Offline RL:</strong> Instead of online interaction, learn from logged trajectories (safer!)</p>
+              </div>
+            </div>
+          </div>
+        `,
+        resources: [
+          { label: "Stanford CME241", url: sourceUrls.cme241 },
+          { label: "Jansen RL", url: sourceUrls.jansen },
+          { label: "OpenAI Gym", url: sourceUrls.gym }
+        ]
+      },
+      {
+        month: 6,
+        monthTitle: "Advanced AI and Production",
+        monthSubtitle: "Use graph learning, reinforcement learning, NLP, and production discipline without losing statistical rigor.",
+        week: 23,
+        focus: "NLP and LLM workflows: filings, news, event studies, retrieval, sentiment, guardrails",
+        description: "News and SEC filings move markets, but extracting signal from unstructured text is hard. Learn to use LLMs and NLP pipelines to quantify news impact and build event-driven strategies.",
+        analogy: "Noisy sensors in an experiment: text is a high-dimensional measurement channel. It must be timestamped, calibrated, and fused without leaking future observations.",
+        outcomes: [
+          "Ingest SEC filings (10-K, 10-Q, 8-K) and parse important events and metrics",
+          "Use retrieval-augmented generation: find relevant documents and use LLMs to extract financial facts",
+          "Measure sentiment and estimate event impact on returns (event study)",
+          "Build a pipeline that combines NLP signals with price/volume factors",
+          "Understand how text-derived features decay over time and when they become stale"
+        ],
+        task: "Build an SEC filing pipeline: ingest filings, chunk text, extract event features or sentiment, run an event study, and test whether text signals add value beyond price/volume factors.",
+        detailed: `
+          <div class="mt-4 border-t border-slate-600 pt-4">
+            <h4 class="text-sm font-bold text-sky-300 mb-3">📚 DETAILED LEARNING SEQUENCE:</h4>
+            
+            <div class="space-y-4 text-sm text-slate-200">
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 1: SEC Filing Ingestion (Day 1)</p>
+                <p><strong>SEC EDGAR API:</strong> Download 10-K (annual), 10-Q (quarterly), 8-K (events)</p>
+                <p class="text-xs text-slate-400 mt-1">URL pattern: https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000051143&type=10-K</p>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 2: Text Processing (Day 1-2)</p>
+                <p><strong>Pipeline:</strong> Download HTML → parse text → chunk into paragraphs → clean</p>
+                <p class="text-xs text-slate-400 mt-1">Use BeautifulSoup for HTML parsing; chunk size ~500 words for LLM context</p>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 3: Extract Events (Day 2-3)</p>
+                <p><strong>Approach 1 (Keyword):</strong> Search for "risk", "litigation", "impairment", "restructuring"</p>
+                <p class="text-xs text-slate-400 mt-1">Approach 2 (LLM):</strong> Use LLM to extract key events: "What major business events occurred?" → label severity</p>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 4: Event Study (Day 3-4)</p>
+                <p><strong>Method:</strong> Find filing date, measure abnormal return on filing day ± 1 day</p>
+                <p class="text-xs text-slate-400 mt-1">Abnormal = actual return - market return; group by event type (acquisition, litigation, etc.)</p>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 5: Combine with Prices (Day 4-5)</p>
+                <p><strong>Test:</strong> Does text-derived event feature + prices/volume better predict next month returns than prices alone?</p>
+                <p class="text-xs text-slate-400 mt-1">Train model: features={event_severity, momentum, vol} → predict direction</p>
+              </div>
+            </div>
+          </div>
+        `,
+        resources: [
+          { label: "SEC EDGAR API", url: sourceUrls.sec },
+          { label: "Jansen Text Data", url: sourceUrls.jansen },
+          { label: "Prado AFML", url: sourceUrls.prado }
+        ]
+      },
+      {
+        month: 6,
+        monthTitle: "Advanced AI and Production",
+        monthSubtitle: "Use graph learning, reinforcement learning, NLP, and production discipline without losing statistical rigor.",
+        week: 24,
+        focus: "Capstone: production research pipeline, experiment tracking, paper trading, monitoring",
+        description: "Bring it all together. Build a complete, monitoring-aware research stack that ingests data, trains models, backtests, runs paper trading, and logs every decision for auditing.",
+        analogy: "Laboratory control room: production quant work is an instrumented experiment running continuously under uncertainty.",
+        outcomes: [
+          "Build a data pipeline that ingests market data, fundamental data, and alternative data sources",
+          "Implement a feature store that computes factors efficiently and tracks feature definitions",
+          "Train models with experiment tracking (MLflow, Weights & Biases): log hyperparameters, metrics, and model artifacts",
+          "Run live backtests and paper trading with realistic latency and execution costs",
+          "Monitor model performance in production and alert when it degrades",
+          "Create dashboards and reports summarizing portfolio performance and factor exposures"
+        ],
+        task: "Ship a capstone stack: data ingestion, feature store, model training, backtest, risk report, paper-trading loop, MLflow experiment tracking, FastAPI endpoint, and dashboard summary.",
+        detailed: `
+          <div class="mt-4 border-t border-slate-600 pt-4">
+            <h4 class="text-sm font-bold text-sky-300 mb-3">📚 DETAILED LEARNING SEQUENCE:</h4>
+            
+            <div class="space-y-4 text-sm text-slate-200">
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 1: Architecture Design (Day 1)</p>
+                <p><strong>Components:</strong> Data Layer → Feature Layer → Model Layer → Backtest → Live</p>
+                <p class="text-xs text-slate-400 mt-1">Data: Postgres or Parquet files (historical prices, fundamentals, news)</p>
+                <p class="mt-2"><strong>Feature Store:</strong> Compute and cache factors (momentum, volatility, sentiment) → version control</p>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 2: Build Data Ingestion (Day 1-2)</p>
+                <p><strong>Pipeline:</strong></p>
+                <ol class="list-decimal list-inside mt-2 space-y-1 text-xs">
+                  <li>Download OHLCV from yfinance or IEX Cloud daily</li>
+                  <li>Compute factors: z-score momentum, 30-day volatility, volume change</li>
+                  <li>Store in Parquet partitioned by date</li>
+                  <li>Log schema, version numbers → reproducibility</li>
+                </ol>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 3: Model Training with MLflow (Day 2-3)</p>
+                <p><strong>MLflow workflow:</strong></p>
+                <pre class="text-xs bg-slate-900 p-2 rounded mt-2 overflow-auto">with mlflow.start_run():
+  mlflow.log_params({'lr': 0.01, 'max_depth': 5})
+  model = train_model(X_train, y_train)
+  mlflow.log_metrics({'val_sharpe': 1.5, 'val_accuracy': 0.6})
+  mlflow.sklearn.log_model(model, "model")</pre>
+                <p class="text-xs text-slate-400 mt-1">Benefit: Track all experiments, compare Sharpe ratios across hyperparams</p>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 4: Backtest & Risk Report (Day 3-4)</p>
+                <p><strong>Backtest engine:</strong> Vectorized, accounts for costs, embargos, position limits</p>
+                <p class="text-xs text-slate-400 mt-1">Report: Sharpe, Max DD, Win%, factor exposures, drawdown curve</p>
+              </div>
+              <div class="bg-slate-800/50 p-3 rounded">
+                <p class="font-semibold text-white mb-2">Step 5: Serve & Monitor (Day 4-5)</p>
+                <p><strong>FastAPI endpoint:</strong> /predict?date=2024-01-10&symbols=AAPL,TSLA → returns [score_AAPL, score_TSLA]</p>
+                <p class="text-xs text-slate-400 mt-1">Monitoring: Log predictions daily, compute accuracy weekly, alert if Sharpe degrades 20%+ YoY</p>
+                <p class="mt-2"><strong>Dashboard:</strong> Streamlit with portfolio PnL, factor heatmap, model performance</p>
+              </div>
+            </div>
+          </div>
+        `,
+        resources: [
+          { label: "MLflow Docs", url: sourceUrls.mlflow },
+          { label: "FastAPI", url: sourceUrls.fastapi },
+          { label: "Chan Quant Trading", url: sourceUrls.chan }
+        ]
+      }
+    ];
+
+    const monthMeta = Array.from(new Map(curriculum.map((item) => [item.month, {
+      month: item.month,
+      title: item.monthTitle,
+      subtitle: item.monthSubtitle
+    }])).values());
+
+    const storageKey = "sciml_quant_progress_v1";
+    let selectedMonth = 1;
+    let progress = loadProgress();
+
+    function loadProgress() {
+      try {
+        return JSON.parse(localStorage.getItem(storageKey)) || {};
+      } catch {
+        return {};
+      }
+    }
+
+    function saveProgress() {
+      localStorage.setItem(storageKey, JSON.stringify(progress));
+    }
+
+    function renderTabs() {
+      const tabs = document.getElementById("monthTabs");
+      tabs.innerHTML = monthMeta.map((month) => `
+        <button
+          class="month-tab min-h-16 rounded-lg border border-slate-700 bg-slate-900/68 px-3 py-3 text-left text-slate-300 transition hover:border-sky-500 hover:text-white"
+          type="button"
+          data-month="${month.month}"
+          aria-selected="${month.month === selectedMonth}"
+        >
+          <span class="block text-xs font-semibold uppercase tracking-[0.14em]">Month ${month.month}</span>
+          <span class="mt-1 block text-sm font-semibold">${month.title}</span>
+        </button>
+      `).join("");
+
+      tabs.querySelectorAll("button").forEach((button) => {
+        button.addEventListener("click", () => {
+          selectedMonth = Number(button.dataset.month);
+          render();
+        });
+      });
+    }
+
+    function renderMonthHeader() {
+      const month = monthMeta.find((item) => item.month === selectedMonth);
+      const weeks = curriculum.filter((item) => item.month === selectedMonth);
+      const done = weeks.filter((item) => progress[item.week]).length;
+      document.getElementById("monthHeader").innerHTML = `
+        <div class="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+          <div>
+            <p class="text-sm font-semibold uppercase tracking-[0.18em] text-sky-300">Month ${month.month}</p>
+            <h2 class="mt-2 text-2xl font-semibold tracking-normal text-white sm:text-3xl">${month.title}</h2>
+            <p class="mt-3 max-w-4xl text-sm leading-6 text-slate-300">${month.subtitle}</p>
+          </div>
+          <div class="rounded-lg border border-slate-700 bg-slate-900/72 px-4 py-3 text-right">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Month progress</p>
+            <p class="mt-1 text-2xl font-semibold text-white">${done} / ${weeks.length}</p>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderWeeks() {
+      const grid = document.getElementById("weeksGrid");
+      const weeks = curriculum.filter((item) => item.month === selectedMonth);
+      grid.innerHTML = weeks.map((item) => {
+        const complete = Boolean(progress[item.week]);
+        const description = item.description || "";
+        const outcomes = item.outcomes || [];
+        return `
+          <article class="week-card flex flex-col rounded-lg border border-slate-700/80 bg-slate-950/58 p-5 shadow-glow backdrop-blur" data-complete="${complete}">
+            <div class="flex items-start gap-4">
+              <input id="week-${item.week}" class="custom-check mt-1" type="checkbox" ${complete ? "checked" : ""} data-week="${item.week}" aria-label="Mark week ${item.week} complete" />
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <p class="text-sm font-semibold uppercase tracking-[0.16em] text-sky-300">Week ${item.week}</p>
+                  ${complete ? `<span class="rounded-md border border-sky-400/40 bg-sky-400/10 px-2 py-1 text-xs font-semibold text-sky-200">Complete</span>` : ""}
+                </div>
+                <h3 class="mt-2 text-lg font-semibold leading-7 text-white">${item.focus}</h3>
+                ${description ? `<p class="mt-2 text-sm text-slate-300">${description}</p>` : ""}
+              </div>
+            </div>
+
+            <div class="mt-4 grid gap-4">
+              ${outcomes.length > 0 ? `
+              <section class="rounded-lg border border-slate-700/70 bg-slate-900/40 p-4">
+                <p class="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-300">By the end of this week, you'll understand:</p>
+                <ul class="text-sm text-slate-200 space-y-1">
+                  ${outcomes.map((outcome) => `<li class="flex gap-2"><span class="text-sky-300 shrink-0">▸</span>${outcome}</li>`).join("")}
+                </ul>
+              </section>
+              ` : ""}
+
+              <section class="rounded-lg border border-sky-500/30 bg-sky-950/28 p-4">
+                <div class="mb-2 flex items-center gap-2 text-sky-200">
+                  <svg aria-hidden="true" class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v18M5 8c2.5-2.4 11.5-2.4 14 0M7 16c2 1.8 8 1.8 10 0" />
+                  </svg>
+                  <p class="text-sm font-semibold uppercase tracking-[0.12em]">Physics Insight</p>
+                </div>
+                <p class="text-sm leading-6 text-slate-200">${item.analogy}</p>
+              </section>
+
+              <section class="rounded-lg border border-slate-700/70 bg-slate-900/62 p-4">
+                <div class="mb-2 flex items-center gap-2 text-slate-200">
+                  <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-sky-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M7 8h10M7 12h6M5 4h14a1 1 0 0 1 1 1v14l-4-3H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z" />
+                  </svg>
+                  <p class="text-sm font-semibold uppercase tracking-[0.12em]">Build This</p>
+                </div>
+                <p class="text-sm leading-6 text-slate-300">${item.task}</p>
+              </section>
+            </div>
+
+            <div class="mt-5 flex flex-wrap gap-2">
+              ${item.resources.map((resource) => `
+                <a class="inline-flex min-h-9 items-center rounded-md border border-slate-600 bg-slate-900 px-3 py-2 text-sm font-medium text-sky-200 transition hover:border-sky-400 hover:bg-sky-950/70 hover:text-white" href="${resource.url}" target="_blank" rel="noopener noreferrer">
+                  ${resource.label}
+                </a>
+              `).join("")}
+            </div>
+            ${item.detailed ? `<div class="mt-4 text-xs">${item.detailed}</div>` : ""}
+          </article>
+        `;
+      }).join("");
+
+      grid.querySelectorAll("input[type='checkbox']").forEach((checkbox) => {
+        checkbox.addEventListener("change", () => {
+          const week = checkbox.dataset.week;
+          progress[week] = checkbox.checked;
+          saveProgress();
+          render();
+        });
+      });
+    }
+
+    function updateProgress() {
+      const completed = curriculum.filter((item) => progress[item.week]).length;
+      const pct = Math.round((completed / curriculum.length) * 100);
+      const latestCompleted = Math.max(0, ...curriculum.filter((item) => progress[item.week]).map((item) => item.week));
+      const activeWeek = curriculum.find((item) => item.week === Math.min(latestCompleted + 1, 24)) || curriculum[0];
+      const activeMonth = monthMeta.find((item) => item.month === activeWeek.month) || monthMeta[0];
+
+      document.getElementById("progressPct").textContent = `${pct}%`;
+      document.getElementById("progressCount").textContent = `${completed} / ${curriculum.length}`;
+      document.getElementById("progressBar").style.width = `${pct}%`;
+      document.getElementById("progressRing").style.setProperty("--progress-deg", `${pct * 3.6}deg`);
+      document.getElementById("currentPhase").textContent = `Month ${activeMonth.month}: ${activeMonth.title}`;
+    }
+
+    function render() {
+      renderTabs();
+      renderMonthHeader();
+      renderWeeks();
+      updateProgress();
+    }
+
+    document.getElementById("resetProgress").addEventListener("click", () => {
+      if (confirm("Reset all completed weeks?")) {
+        progress = {};
+        saveProgress();
+        render();
+      }
+    });
+
+    document.getElementById("showOverview").addEventListener("click", () => {
+      const overview = document.getElementById("overviewPanel");
+      overview.classList.toggle("hidden");
+    });
+
+    render();
+  </script>
+</body>
+</html>

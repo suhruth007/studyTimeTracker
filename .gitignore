@@ -8,6 +8,7 @@ __pycache__/
 venv/
 env/
 *.egg-info/
+*.html
 
 # Local app data
 study_tracker.db

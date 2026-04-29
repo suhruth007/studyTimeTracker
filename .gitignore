@@ -8,6 +8,8 @@ __pycache__/
 venv/
 env/
 *.egg-info/
+
+# HTML
 *.html
 
 # Local app data

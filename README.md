@@ -3,7 +3,7 @@
 A polished Windows study timer with webcam-based presence detection, instant pause-on-away, memo tracking, and a compact dashboard widget.
 
 ![Study Presence Tracker Screenshot](image.png)
-Alarm : Zinda (from Bhaa)
+Alarm : Zinda (from Bhaag Milkha Bhaag)
 
 ## What it does
 

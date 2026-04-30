@@ -1,62 +1,78 @@
 # Study Presence Tracker
 
-A Windows desktop study timer that uses your webcam to detect whether you are present.
+A polished Windows study timer with webcam-based presence detection, instant pause-on-away, memo tracking, and a compact dashboard widget.
 
-## Setup
+![Study Presence Tracker Screenshot](image.png)
+Alarm : Zinda (from Bhaa)
 
-Install dependencies:
+## What it does
+
+Study Presence Tracker turns your Windows PC into a smart study assistant:
+
+- Automatically detects your presence using webcam face/body detection.
+- Pauses the study timer after 2 minutes away and plays an alarm.
+- Keeps a clean session history with timestamps, duration, and memo notes.
+- Supports a compact always-on-top widget when the dashboard is minimized.
+- Exports study sessions to CSV for review or journaling.
+
+## Why it’s useful
+
+- Stay focused: the timer only counts while you’re actually present.
+- Prevent lost study time with an automatic away pause.
+- Keep accountability with a required session memo.
+- Track daily goals and study streaks at a glance.
+- Run it anywhere: bundled as a self-contained Windows executable.
+
+## Ready-to-run Windows package
+
+A standalone Windows executable is already built at:
+
+- `dist\StudyPresenceTracker.exe`
+
+This file is the installable/portable version for Windows. Copy it to any modern Windows PC and run it directly.
+
+> Tip: If you want to preserve your study history, keep `study_tracker.db` in the same folder as the executable.
+
+## Run it now
+
+1. Open the `dist` folder.
+2. Double-click `StudyPresenceTracker.exe`.
+3. Start a session, minimize to widget mode, and let the app track your focus.
+
+## Build your own package
+
+If you prefer to rebuild from source:
 
 ```powershell
 .venv\Scripts\python.exe -m pip install -r requirements.txt
-```
-s
-Run the app:
-
-```powershell
-.venv\Scripts\python.exe study_presence_tracker.py
+.\build_exe.bat
 ```
 
-Or double-click:
+This produces the same standalone executable in `dist\StudyPresenceTracker.exe`.
 
-```text
-run_study_tracker.bat
-```
+## Features
 
-Build the no-install Windows exe:
+- Webcam presence detection with OpenCV YuNet + fallback cascade detection
+- Compact widget minimizes the full dashboard while keeping controls visible
+- Automatic two-minute away grace period with alarm activation
+- Manual "I’m Here" reset for missed detection
+- Daily goal tracking and streak reporting
+- CSV export of saved sessions
+- Local SQLite history storage for persistence
 
-```text
-build_exe.bat
-```
+## Included files
 
-The portable exe is created at `dist\StudyPresenceTracker.exe`. Keep `study_tracker.db` beside it if you want to preserve the same history.
+- `study_presence_tracker.py` — main app logic
+- `study_services.py` — goal tracking, streaks, and export support
+- `build_exe.bat` — build script for generating the portable `.exe`
+- `StudyPresenceTracker.spec` — PyInstaller spec
+- `face_detection_yunet_2023mar.onnx` — face detection model
+- `Zinda Bhaag Milkha Bhaag 128 Kbps.mp3` — alarm audio
+- `study_tracker.db` — local session history database (created automatically)
+- `image.png` — screenshot of the app interface
 
-## Behavior
+## Notes
 
-- Press **Start** to begin a study session.
-- The camera checks one snapshot every 5 seconds using OpenCV YuNet face detection plus an upper-body fallback.
-- The timer counts while your recent presence snapshot is valid.
-- If you leave the camera view, the app gives a 2 minute grace period.
-- After 2 minutes away, the timer pauses and the alarm plays.
-- The alarm stops automatically when your face is detected again.
-- Use **Test Alarm** to check MP3 playback without waiting for the away timer.
-- The camera preview shows detection boxes for testing:
-  - green: confirmed face
-  - purple: upper-body signal
-  - yellow: soft face signal
-  - gray: no usable face signal
-- Use **I'm Here** to manually reset away status if detection misses you.
-- Set a daily goal in hours, track your streak, and export session logs to CSV.
-- A compact always-on-top widget appears in the top-left corner with timer, status, Start, Stop, Here, and Dashboard controls.
-- Press **Stop** to save the session.
-- A memo with at least 10 words is required before the session is saved.
-- Study history is stored locally in `study_tracker.db`.
-
-## Files
-
-- `study_presence_tracker.py` - desktop app
-- `study_services.py` - daily goal, streak, and CSV export service
-- `build_exe.bat` - creates the portable Windows exe
-- `study_tracker.db` - created automatically after first save
-- `face_detection_yunet_2023mar.onnx` - OpenCV face detection model
-- `Zinda Bhaag Milkha Bhaag 128 Kbps.mp3` - alarm sound
-- `.venv` - local Python environment created for this app
+- The built executable is self-contained and designed for Windows.
+- The app requires a webcam for presence sensing.
+- Keep the `.db` file in the same directory if you want to save and review history across runs.

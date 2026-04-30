@@ -1,4 +1,5 @@
 import datetime as dt
+import os
 import sqlite3
 import sys
 import threading
@@ -36,6 +37,14 @@ PRESENT_HITS_REQUIRED = 1
 AWAY_MISSES_REQUIRED = 1
 SOFT_FACE_HOLD_SECONDS = 45
 CAMERA_INDEX = 0
+
+RETRO_BG = "#c0c0c0"
+RETRO_DARK = "#808080"
+RETRO_LIGHT = "#ffffff"
+RETRO_TITLE = "#000080"
+RETRO_TITLE_TEXT = "#ffffff"
+RETRO_TEXT = "#000000"
+RETRO_PANEL = "#d4d0c8"
 
 
 def format_duration(seconds):
@@ -114,6 +123,32 @@ class StudyDatabase:
                 (today,),
             ).fetchone()
         return int(row[0] or 0)
+
+    def today_sessions(self):
+        today = dt.date.today().isoformat()
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT started_at, ended_at, active_seconds, memo
+                FROM sessions
+                WHERE substr(started_at, 1, 10) = ?
+                ORDER BY started_at DESC
+                """,
+                (today,),
+            ).fetchall()
+        return rows
+
+    def latest_memo(self):
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT memo
+                FROM sessions
+                ORDER BY ended_at DESC
+                LIMIT 1
+                """
+            ).fetchone()
+        return row[0] if row else ""
 
 
 class AlarmPlayer:
@@ -423,6 +458,7 @@ class StudyTrackerApp:
         self.root.title("Study Presence Tracker")
         self.root.geometry("1120x720")
         self.root.minsize(980, 640)
+        self.root.option_add("*Font", "Tahoma 9")
 
         self.db = StudyDatabase(DB_PATH)
         self.stats = StudyStatsService(DB_PATH)
@@ -447,18 +483,23 @@ class StudyTrackerApp:
         self.camera_var = StringVar(value="Camera starting...")
         self.away_var = StringVar(value="Away: 00:00")
         self.preview_status_var = StringVar(value="Camera Preview")
+        self.memo_preview_var = StringVar(value="No memo saved yet.")
         self.preview_image = None
         self.widget_window = None
         self.widget_drag_offset = (0, 0)
+        self.closing = False
 
         self._build_ui()
         self.create_corner_widget()
         self.load_goal_display()
         self.camera.start()
         self.refresh_history()
+        self.refresh_today_panel()
         self.root.after(1000, self.tick)
         self.root.after(150, self.update_camera_preview)
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
+        self.root.bind("<Unmap>", self.on_root_state_change)
+        self.root.bind("<Map>", self.on_root_state_change)
 
         if not ALARM_PATH.exists():
             messagebox.showwarning("Alarm missing", f"Alarm file was not found:\n{ALARM_PATH}")
@@ -468,110 +509,126 @@ class StudyTrackerApp:
     def create_corner_widget(self):
         widget = Toplevel(self.root)
         widget.title("Study Widget")
-        widget.geometry("260x136+0+0")
+        widget.geometry("268x142+0+0")
         widget.resizable(False, False)
-        widget.configure(bg="#020617")
+        widget.configure(bg=RETRO_BG)
         widget.attributes("-topmost", True)
         widget.overrideredirect(True)
         self.widget_window = widget
 
-        outer = Frame(widget, bg="#020617", padx=10, pady=8, highlightbackground="#38bdf8", highlightthickness=1)
+        outer = Frame(widget, bg=RETRO_BG, padx=3, pady=3, relief="raised", bd=2)
         outer.pack(fill=BOTH, expand=True)
         outer.bind("<ButtonPress-1>", self.start_widget_drag)
         outer.bind("<B1-Motion>", self.drag_widget)
 
-        top_row = Frame(outer, bg="#020617")
+        top_row = Frame(outer, bg=RETRO_TITLE, padx=4, pady=2)
         top_row.pack(fill=BOTH)
         top_row.bind("<ButtonPress-1>", self.start_widget_drag)
         top_row.bind("<B1-Motion>", self.drag_widget)
 
         Label(
             top_row,
-            textvariable=self.timer_var,
-            bg="#020617",
-            fg="#38bdf8",
-            font=("Consolas", 20, "bold"),
+            text="STUDY",
+            bg=RETRO_TITLE,
+            fg=RETRO_TITLE_TEXT,
+            font=("Tahoma", 8, "bold"),
         ).pack(side=LEFT)
 
         Button(
             top_row,
             text="x",
-            command=widget.withdraw,
-            bg="#111827",
-            fg="#e5e7eb",
-            activebackground="#1f2937",
-            activeforeground="#ffffff",
-            width=3,
-            relief="flat",
+            command=self.restore_from_widget,
+            bg=RETRO_BG,
+            fg=RETRO_TEXT,
+            activebackground=RETRO_BG,
+            activeforeground=RETRO_TEXT,
+            width=2,
+            relief="raised",
+            bd=1,
+            font=("Tahoma", 8, "bold"),
         ).pack(side=RIGHT)
 
         Label(
             outer,
-            textvariable=self.status_var,
-            bg="#020617",
-            fg="#facc15",
-            font=("Segoe UI", 9, "bold"),
+            textvariable=self.timer_var,
+            bg=RETRO_BG,
+            fg=RETRO_TEXT,
+            font=("Consolas", 20, "bold"),
             anchor="w",
-        ).pack(fill=BOTH, pady=(4, 0))
+        ).pack(fill=BOTH, pady=(6, 0))
+
+        Label(
+            outer,
+            textvariable=self.status_var,
+            bg=RETRO_BG,
+            fg=RETRO_TEXT,
+            font=("Tahoma", 8),
+            anchor="w",
+        ).pack(fill=BOTH, pady=(2, 0))
 
         Label(
             outer,
             textvariable=self.away_var,
-            bg="#020617",
-            fg="#fca5a5",
-            font=("Segoe UI", 9),
+            bg=RETRO_BG,
+            fg=RETRO_TEXT,
+            font=("Tahoma", 8),
             anchor="w",
         ).pack(fill=BOTH)
 
-        buttons = Frame(outer, bg="#020617")
+        buttons = Frame(outer, bg=RETRO_BG)
         buttons.pack(fill=BOTH, pady=(6, 0))
 
         Button(
             buttons,
             text="Start",
             command=self.start_session,
-            bg="#0ea5e9",
-            fg="#ffffff",
-            activebackground="#0284c7",
-            activeforeground="#ffffff",
+            bg=RETRO_BG,
+            fg=RETRO_TEXT,
+            activebackground=RETRO_BG,
+            activeforeground=RETRO_TEXT,
             width=7,
-            relief="flat",
+            relief="raised",
+            bd=2,
         ).pack(side=LEFT, padx=(0, 5))
 
         Button(
             buttons,
             text="Stop",
             command=self.request_stop_session,
-            bg="#ef4444",
-            fg="#ffffff",
-            activebackground="#dc2626",
-            activeforeground="#ffffff",
+            bg=RETRO_BG,
+            fg=RETRO_TEXT,
+            activebackground=RETRO_BG,
+            activeforeground=RETRO_TEXT,
             width=7,
-            relief="flat",
+            relief="raised",
+            bd=2,
         ).pack(side=LEFT, padx=(0, 5))
 
         Button(
             buttons,
             text="Here",
             command=self.mark_manual_here,
-            bg="#22c55e",
-            fg="#ffffff",
-            activebackground="#16a34a",
-            activeforeground="#ffffff",
+            bg=RETRO_BG,
+            fg=RETRO_TEXT,
+            activebackground=RETRO_BG,
+            activeforeground=RETRO_TEXT,
             width=7,
-            relief="flat",
+            relief="raised",
+            bd=2,
         ).pack(side=LEFT)
 
         Button(
             outer,
             text="Dashboard",
             command=self.show_dashboard,
-            bg="#1f2937",
-            fg="#ffffff",
-            activebackground="#374151",
-            activeforeground="#ffffff",
-            relief="flat",
+            bg=RETRO_BG,
+            fg=RETRO_TEXT,
+            activebackground=RETRO_BG,
+            activeforeground=RETRO_TEXT,
+            relief="raised",
+            bd=2,
         ).pack(fill=BOTH, pady=(6, 0))
+        widget.withdraw()
 
     def start_widget_drag(self, event):
         self.widget_drag_offset = (event.x_root - self.widget_window.winfo_x(), event.y_root - self.widget_window.winfo_y())
@@ -583,6 +640,8 @@ class StudyTrackerApp:
         self.widget_window.geometry(f"+{x}+{y}")
 
     def show_dashboard(self):
+        if self.widget_window:
+            self.widget_window.withdraw()
         self.root.deiconify()
         self.root.lift()
         self.root.focus_force()
@@ -593,73 +652,138 @@ class StudyTrackerApp:
             self.widget_window.attributes("-topmost", True)
             self.widget_window.lift()
 
+    def restore_from_widget(self):
+        self.show_dashboard()
+
+    def minimize_to_widget(self):
+        self.root.iconify()
+
+    def on_root_state_change(self, _event=None):
+        if self.closing or not self.widget_window:
+            return
+        self.root.after(120, self.sync_widget_visibility)
+
+    def sync_widget_visibility(self):
+        if self.closing or not self.widget_window:
+            return
+        if self.root.state() == "iconic":
+            self.show_corner_widget()
+        else:
+            self.widget_window.withdraw()
+
     def _build_ui(self):
-        self.root.configure(bg="#0b1220")
+        self.root.configure(bg=RETRO_BG)
         style = ttk.Style()
         style.theme_use("clam")
-        style.configure("Treeview", background="#111827", foreground="#e5e7eb", fieldbackground="#111827", rowheight=30)
-        style.configure("Treeview.Heading", background="#1f2937", foreground="#f9fafb", font=("Segoe UI", 10, "bold"))
+        style.configure("Treeview", background=RETRO_LIGHT, foreground=RETRO_TEXT, fieldbackground=RETRO_LIGHT, rowheight=24, bordercolor=RETRO_DARK, relief="sunken")
+        style.configure("Treeview.Heading", background=RETRO_BG, foreground=RETRO_TEXT, font=("Tahoma", 9, "bold"), relief="raised")
 
-        main = Frame(self.root, bg="#0b1220", padx=24, pady=22)
+        main = Frame(self.root, bg=RETRO_BG, padx=10, pady=10)
         main.pack(fill=BOTH, expand=True)
 
-        top = Frame(main, bg="#0b1220")
+        top = Frame(main, bg=RETRO_BG, relief="raised", bd=2)
         top.pack(fill=BOTH, expand=False)
 
-        title = Label(top, text="Study Presence Tracker", bg="#0b1220", fg="#f9fafb", font=("Segoe UI", 22, "bold"))
-        title.pack(anchor="w")
+        title_bar = Label(top, text=" Study Presence Tracker", bg=RETRO_TITLE, fg=RETRO_TITLE_TEXT, font=("Tahoma", 10, "bold"), anchor="w")
+        title_bar.pack(fill=BOTH)
 
         subtitle = Label(
             top,
             text="Camera checks one snapshot every 5 seconds. Alarm starts after 2 minutes away.",
-            bg="#0b1220",
-            fg="#9ca3af",
-            font=("Segoe UI", 10),
+            bg=RETRO_BG,
+            fg=RETRO_TEXT,
+            font=("Tahoma", 9),
+            anchor="w",
         )
-        subtitle.pack(anchor="w", pady=(4, 18))
+        subtitle.pack(fill=BOTH, padx=8, pady=8)
 
-        dashboard = Frame(main, bg="#111827", padx=22, pady=20, highlightbackground="#263244", highlightthickness=1)
-        dashboard.pack(fill=BOTH, expand=False)
+        dashboard = Frame(main, bg=RETRO_BG, padx=12, pady=12, relief="raised", bd=2)
+        dashboard.pack(fill=BOTH, expand=False, pady=(10, 0))
 
-        left_panel = Frame(dashboard, bg="#111827")
+        left_panel = Frame(dashboard, bg=RETRO_BG)
         left_panel.pack(side=LEFT, fill=BOTH, expand=True)
 
-        timer = Label(left_panel, textvariable=self.timer_var, bg="#111827", fg="#38bdf8", font=("Consolas", 48, "bold"))
+        timer = Label(left_panel, textvariable=self.timer_var, bg=RETRO_LIGHT, fg=RETRO_TEXT, font=("Consolas", 42, "bold"), relief="sunken", bd=2, padx=8)
         timer.pack(anchor="w")
 
-        today = Label(left_panel, textvariable=self.today_var, bg="#111827", fg="#d1d5db", font=("Segoe UI", 14, "bold"))
+        today = Label(left_panel, textvariable=self.today_var, bg=RETRO_BG, fg=RETRO_TEXT, font=("Tahoma", 11, "bold"))
         today.pack(anchor="w", pady=(4, 2))
 
-        goal = Label(left_panel, textvariable=self.goal_var, bg="#111827", fg="#d1d5db", font=("Segoe UI", 11, "bold"))
+        goal = Label(left_panel, textvariable=self.goal_var, bg=RETRO_BG, fg=RETRO_TEXT, font=("Tahoma", 9, "bold"))
         goal.pack(anchor="w", pady=(2, 0))
 
-        streak = Label(left_panel, textvariable=self.streak_var, bg="#111827", fg="#a7f3d0", font=("Segoe UI", 11, "bold"))
+        streak = Label(left_panel, textvariable=self.streak_var, bg=RETRO_BG, fg=RETRO_TEXT, font=("Tahoma", 9, "bold"))
         streak.pack(anchor="w", pady=(2, 0))
 
-        status = Label(left_panel, textvariable=self.status_var, bg="#111827", fg="#facc15", font=("Segoe UI", 12))
+        status = Label(left_panel, textvariable=self.status_var, bg=RETRO_BG, fg=RETRO_TEXT, font=("Tahoma", 9))
         status.pack(anchor="w", pady=(8, 0))
 
-        camera = Label(left_panel, textvariable=self.camera_var, bg="#111827", fg="#a7f3d0", font=("Segoe UI", 11))
+        camera = Label(left_panel, textvariable=self.camera_var, bg=RETRO_BG, fg=RETRO_TEXT, font=("Tahoma", 9))
         camera.pack(anchor="w", pady=(4, 0))
 
-        away = Label(left_panel, textvariable=self.away_var, bg="#111827", fg="#fca5a5", font=("Segoe UI", 11))
+        away = Label(left_panel, textvariable=self.away_var, bg=RETRO_BG, fg=RETRO_TEXT, font=("Tahoma", 9))
         away.pack(anchor="w", pady=(4, 0))
 
-        controls = Frame(dashboard, bg="#111827")
+        today_panel = Frame(left_panel, bg=RETRO_BG, relief="raised", bd=2)
+        today_panel.pack(fill=BOTH, expand=True, pady=(22, 0), padx=(0, 18))
+
+        Label(
+            today_panel,
+            text=" Today's Sessions",
+            bg=RETRO_TITLE,
+            fg=RETRO_TITLE_TEXT,
+            font=("Tahoma", 9, "bold"),
+            anchor="w",
+        ).pack(fill=BOTH)
+
+        self.today_sessions = ttk.Treeview(today_panel, columns=("time", "duration"), show="headings", height=6)
+        self.today_sessions.heading("time", text="Time")
+        self.today_sessions.heading("duration", text="Duration")
+        self.today_sessions.column("time", anchor="w", width=170)
+        self.today_sessions.column("duration", anchor="w", width=100)
+        self.today_sessions.pack(fill=BOTH, expand=False, padx=8, pady=(8, 10))
+
+        Label(
+            today_panel,
+            text=" Last Memo",
+            bg=RETRO_TITLE,
+            fg=RETRO_TITLE_TEXT,
+            font=("Tahoma", 9, "bold"),
+            anchor="w",
+        ).pack(fill=BOTH, padx=8, pady=(0, 0))
+
+        Label(
+            today_panel,
+            textvariable=self.memo_preview_var,
+            bg=RETRO_LIGHT,
+            fg=RETRO_TEXT,
+            font=("Tahoma", 9),
+            anchor="nw",
+            justify=LEFT,
+            wraplength=560,
+            relief="sunken",
+            bd=2,
+            padx=8,
+            pady=6,
+            height=4,
+        ).pack(fill=BOTH, expand=True, padx=8, pady=(0, 8))
+
+        controls = Frame(dashboard, bg=RETRO_BG)
         controls.pack(side=RIGHT, fill=BOTH, padx=(18, 0))
 
         self.start_button = Button(
             controls,
             text="Start",
             command=self.start_session,
-            bg="#0ea5e9",
-            fg="#ffffff",
-            activebackground="#0284c7",
-            activeforeground="#ffffff",
-            font=("Segoe UI", 13, "bold"),
+            bg=RETRO_BG,
+            fg=RETRO_TEXT,
+            activebackground=RETRO_BG,
+            activeforeground=RETRO_TEXT,
+            font=("Tahoma", 10, "bold"),
             width=14,
             height=2,
-            relief="flat",
+            relief="raised",
+            bd=2,
         )
         self.start_button.pack(side=TOP, pady=(6, 12))
 
@@ -667,14 +791,15 @@ class StudyTrackerApp:
             controls,
             text="Stop",
             command=self.request_stop_session,
-            bg="#ef4444",
-            fg="#ffffff",
-            activebackground="#dc2626",
-            activeforeground="#ffffff",
-            font=("Segoe UI", 13, "bold"),
+            bg=RETRO_BG,
+            fg=RETRO_TEXT,
+            activebackground=RETRO_BG,
+            activeforeground=RETRO_TEXT,
+            font=("Tahoma", 10, "bold"),
             width=14,
             height=2,
-            relief="flat",
+            relief="raised",
+            bd=2,
             state="disabled",
         )
         self.stop_button.pack(side=TOP)
@@ -683,14 +808,15 @@ class StudyTrackerApp:
             controls,
             text="I'm Here",
             command=self.mark_manual_here,
-            bg="#22c55e",
-            fg="#ffffff",
-            activebackground="#16a34a",
-            activeforeground="#ffffff",
-            font=("Segoe UI", 11, "bold"),
+            bg=RETRO_BG,
+            fg=RETRO_TEXT,
+            activebackground=RETRO_BG,
+            activeforeground=RETRO_TEXT,
+            font=("Tahoma", 9, "bold"),
             width=14,
             height=2,
-            relief="flat",
+            relief="raised",
+            bd=2,
         )
         self.manual_here_button.pack(side=TOP, pady=(12, 0))
 
@@ -698,43 +824,46 @@ class StudyTrackerApp:
             controls,
             text="Test Alarm",
             command=self.test_alarm,
-            bg="#374151",
-            fg="#ffffff",
-            activebackground="#4b5563",
-            activeforeground="#ffffff",
-            font=("Segoe UI", 11, "bold"),
+            bg=RETRO_BG,
+            fg=RETRO_TEXT,
+            activebackground=RETRO_BG,
+            activeforeground=RETRO_TEXT,
+            font=("Tahoma", 9, "bold"),
             width=14,
             height=2,
-            relief="flat",
+            relief="raised",
+            bd=2,
         )
         self.test_alarm_button.pack(side=TOP, pady=(12, 0))
 
         Button(
             controls,
-            text="Show Widget",
-            command=self.show_corner_widget,
-            bg="#374151",
-            fg="#ffffff",
-            activebackground="#4b5563",
-            activeforeground="#ffffff",
-            font=("Segoe UI", 11, "bold"),
+            text="Minimize",
+            command=self.minimize_to_widget,
+            bg=RETRO_BG,
+            fg=RETRO_TEXT,
+            activebackground=RETRO_BG,
+            activeforeground=RETRO_TEXT,
+            font=("Tahoma", 9, "bold"),
             width=14,
             height=2,
-            relief="flat",
+            relief="raised",
+            bd=2,
         ).pack(side=TOP, pady=(12, 0))
 
-        goal_box = Frame(controls, bg="#111827")
+        goal_box = Frame(controls, bg=RETRO_BG)
         goal_box.pack(side=TOP, fill=BOTH, pady=(12, 0))
 
         self.goal_entry = Entry(
             goal_box,
             textvariable=self.goal_entry_var,
-            bg="#020617",
-            fg="#f9fafb",
-            insertbackground="#f9fafb",
-            relief="flat",
+            bg=RETRO_LIGHT,
+            fg=RETRO_TEXT,
+            insertbackground=RETRO_TEXT,
+            relief="sunken",
+            bd=2,
             width=8,
-            font=("Segoe UI", 11),
+            font=("Tahoma", 9),
         )
         self.goal_entry.pack(side=LEFT, fill=BOTH, expand=True)
 
@@ -742,51 +871,54 @@ class StudyTrackerApp:
             goal_box,
             text="Set Goal",
             command=self.save_daily_goal,
-            bg="#374151",
-            fg="#ffffff",
-            activebackground="#4b5563",
-            activeforeground="#ffffff",
-            font=("Segoe UI", 10, "bold"),
-            relief="flat",
+            bg=RETRO_BG,
+            fg=RETRO_TEXT,
+            activebackground=RETRO_BG,
+            activeforeground=RETRO_TEXT,
+            font=("Tahoma", 9, "bold"),
+            relief="raised",
+            bd=2,
         ).pack(side=RIGHT, padx=(8, 0))
 
         Button(
             controls,
             text="Export CSV",
             command=self.export_csv,
-            bg="#374151",
-            fg="#ffffff",
-            activebackground="#4b5563",
-            activeforeground="#ffffff",
-            font=("Segoe UI", 11, "bold"),
+            bg=RETRO_BG,
+            fg=RETRO_TEXT,
+            activebackground=RETRO_BG,
+            activeforeground=RETRO_TEXT,
+            font=("Tahoma", 9, "bold"),
             width=14,
             height=2,
-            relief="flat",
+            relief="raised",
+            bd=2,
         ).pack(side=TOP, pady=(12, 0))
 
         preview_title = Label(
             controls,
             textvariable=self.preview_status_var,
-            bg="#111827",
-            fg="#f9fafb",
-            font=("Segoe UI", 11, "bold"),
+            bg=RETRO_TITLE,
+            fg=RETRO_TITLE_TEXT,
+            font=("Tahoma", 9, "bold"),
+            anchor="w",
         )
-        preview_title.pack(side=TOP, anchor="w", pady=(18, 8))
+        preview_title.pack(side=TOP, fill=BOTH, pady=(18, 0))
 
-        preview_box = Frame(controls, bg="#020617", width=360, height=270)
+        preview_box = Frame(controls, bg=RETRO_LIGHT, width=360, height=270, relief="sunken", bd=2)
         preview_box.pack(side=TOP)
         preview_box.pack_propagate(False)
 
         self.preview_label = Label(
             preview_box,
             text="Waiting for camera...",
-            bg="#020617",
-            fg="#9ca3af",
+            bg=RETRO_LIGHT,
+            fg=RETRO_TEXT,
             relief="flat",
         )
         self.preview_label.pack(fill=BOTH, expand=True)
 
-        history_label = Label(main, text="Daily Study History", bg="#0b1220", fg="#f9fafb", font=("Segoe UI", 15, "bold"))
+        history_label = Label(main, text=" Daily Study History", bg=RETRO_TITLE, fg=RETRO_TITLE_TEXT, font=("Tahoma", 9, "bold"), anchor="w")
         history_label.pack(anchor="w", pady=(24, 10))
 
         self.history = ttk.Treeview(main, columns=("day", "total", "goal"), show="headings", height=10)
@@ -893,30 +1025,31 @@ class StudyTrackerApp:
         dialog.geometry("560x360")
         dialog.transient(self.root)
         dialog.grab_set()
-        dialog.configure(bg="#0b1220")
+        dialog.configure(bg=RETRO_BG)
 
         Label(
             dialog,
             text="What did you study or work on?",
-            bg="#0b1220",
-            fg="#f9fafb",
-            font=("Segoe UI", 14, "bold"),
-        ).pack(anchor="w", padx=18, pady=(18, 4))
+            bg=RETRO_TITLE,
+            fg=RETRO_TITLE_TEXT,
+            font=("Tahoma", 9, "bold"),
+            anchor="w",
+        ).pack(fill=BOTH, padx=8, pady=(8, 4))
 
         Label(
             dialog,
             text="Enter at least 10 words before stopping the session.",
-            bg="#0b1220",
-            fg="#9ca3af",
-            font=("Segoe UI", 10),
+            bg=RETRO_BG,
+            fg=RETRO_TEXT,
+            font=("Tahoma", 9),
         ).pack(anchor="w", padx=18, pady=(0, 12))
 
-        memo_box = Text(dialog, height=9, wrap="word", bg="#111827", fg="#f9fafb", insertbackground="#f9fafb", relief="flat")
+        memo_box = Text(dialog, height=9, wrap="word", bg=RETRO_LIGHT, fg=RETRO_TEXT, insertbackground=RETRO_TEXT, relief="sunken", bd=2)
         memo_box.pack(fill=BOTH, expand=True, padx=18)
         feedback = StringVar(value="Words: 0 / 10")
-        Label(dialog, textvariable=feedback, bg="#0b1220", fg="#fca5a5", font=("Segoe UI", 10)).pack(anchor="w", padx=18, pady=(8, 0))
+        Label(dialog, textvariable=feedback, bg=RETRO_BG, fg=RETRO_TEXT, font=("Tahoma", 9)).pack(anchor="w", padx=18, pady=(8, 0))
 
-        buttons = Frame(dialog, bg="#0b1220")
+        buttons = Frame(dialog, bg=RETRO_BG)
         buttons.pack(fill=BOTH, padx=18, pady=16)
 
         def update_feedback(_event=None):
@@ -933,8 +1066,8 @@ class StudyTrackerApp:
             dialog.destroy()
 
         memo_box.bind("<KeyRelease>", update_feedback)
-        Button(buttons, text="Cancel", command=dialog.destroy, width=12, bg="#374151", fg="#ffffff", relief="flat").pack(side=RIGHT, padx=(8, 0))
-        Button(buttons, text="Save Session", command=save_and_close, width=14, bg="#22c55e", fg="#ffffff", relief="flat").pack(side=RIGHT)
+        Button(buttons, text="Cancel", command=dialog.destroy, width=12, bg=RETRO_BG, fg=RETRO_TEXT, relief="raised", bd=2).pack(side=RIGHT, padx=(8, 0))
+        Button(buttons, text="Save Session", command=save_and_close, width=14, bg=RETRO_BG, fg=RETRO_TEXT, relief="raised", bd=2).pack(side=RIGHT)
         memo_box.focus_set()
 
     def stop_session(self, memo):
@@ -946,6 +1079,7 @@ class StudyTrackerApp:
         self.start_button.configure(state="normal")
         self.stop_button.configure(state="disabled")
         self.refresh_history()
+        self.refresh_today_panel()
 
     def tick(self):
         now = time.monotonic()
@@ -999,15 +1133,62 @@ class StudyTrackerApp:
             goal_state = "Met" if totals[day] >= goal_seconds else "Not met"
             self.history.insert("", END, values=(day, format_duration(totals[day]), goal_state))
 
+    def refresh_today_panel(self):
+        for item in self.today_sessions.get_children():
+            self.today_sessions.delete(item)
+
+        sessions = self.db.today_sessions()
+        for started_at, ended_at, active_seconds, _memo in sessions:
+            start_label = started_at[11:16] if len(started_at) >= 16 else started_at
+            end_label = ended_at[11:16] if len(ended_at) >= 16 else ended_at
+            self.today_sessions.insert("", END, values=(f"{start_label} - {end_label}", format_duration(active_seconds)))
+
+        latest_memo = self.db.latest_memo().strip()
+        if latest_memo:
+            if len(latest_memo) > 220:
+                latest_memo = latest_memo[:217].rstrip() + "..."
+            self.memo_preview_var.set(latest_memo)
+        else:
+            self.memo_preview_var.set("No memo saved yet.")
+
     def on_close(self):
         if self.session_running:
-            if not messagebox.askyesno("Session running", "A session is running. Close without saving it?"):
+            if not messagebox.askyesno(
+                "Session running",
+                "A session is still running. Close now and save it with memo: closed abruptly?",
+            ):
                 return
+            self.stop_abrupt_session()
+        self.closing = True
         self.alarm.stop()
         self.camera.stop()
         if self.widget_window:
-            self.widget_window.destroy()
+            try:
+                self.widget_window.destroy()
+            except Exception:
+                pass
+            self.widget_window = None
         self.root.destroy()
+        self.root.quit()
+        os._exit(0)
+
+    def stop_abrupt_session(self):
+        ended_at = dt.datetime.now()
+        self.session_running = False
+        self.alarm.stop()
+        if self.session_started_at:
+            self.db.add_session(
+                self.session_started_at,
+                ended_at,
+                self.active_seconds,
+                self.away_seconds,
+                "closed abruptly",
+            )
+        self.status_var.set("Session saved as closed abruptly")
+        self.start_button.configure(state="normal")
+        self.stop_button.configure(state="disabled")
+        self.refresh_history()
+        self.refresh_today_panel()
 
 
 if __name__ == "__main__":

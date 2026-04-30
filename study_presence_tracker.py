@@ -1023,6 +1023,13 @@ class StudyTrackerApp:
         dialog = Toplevel(self.root)
         dialog.title("Session memo")
         dialog.geometry("560x360")
+        
+        # Ensure the dialog is visible and usable
+        # If root is minimized, de-iconify it to prevent the dialog from hanging
+        if self.root.state() == "iconic":
+            self.root.deiconify()
+            self.root.lift()
+        
         dialog.transient(self.root)
         dialog.grab_set()
         dialog.configure(bg=RETRO_BG)

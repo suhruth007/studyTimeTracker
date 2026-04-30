@@ -5,4 +5,3 @@ if exist ".venv\Scripts\python.exe" (
 ) else (
   python study_presence_tracker.py
 )
-pause

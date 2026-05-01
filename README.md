@@ -54,6 +54,8 @@ This produces the same standalone executable in `dist\StudyPresenceTracker.exe`.
 
 - Webcam presence detection with OpenCV YuNet + fallback cascade detection
 - Compact widget minimizes the full dashboard while keeping controls visible
+- Weekly and monthly performance charts with averages and goal attainment
+- Important study statistics shown in a separate analytics window
 - Automatic two-minute away grace period with alarm activation
 - Manual "I’m Here" reset for missed detection
 - Daily goal tracking and streak reporting

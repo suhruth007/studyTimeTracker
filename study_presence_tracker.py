@@ -9,8 +9,13 @@ from tkinter import BOTH, END, LEFT, RIGHT, TOP, Button, Entry, Frame, Label, Ph
 from tkinter import ttk
 
 import cv2
+import matplotlib
+matplotlib.use("TkAgg")
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.figure import Figure
 import pyglet
 
+from analytics_service import AnalyticsService
 from study_services import StudyStatsService
 
 
@@ -462,6 +467,7 @@ class StudyTrackerApp:
 
         self.db = StudyDatabase(DB_PATH)
         self.stats = StudyStatsService(DB_PATH)
+        self.analytics = AnalyticsService(DB_PATH)
         self.alarm = AlarmPlayer(ALARM_PATH)
         self.camera = CameraPresence(self.set_camera_status)
 
@@ -657,6 +663,12 @@ class StudyTrackerApp:
 
     def minimize_to_widget(self):
         self.root.iconify()
+
+    def open_analytics_window(self):
+        if hasattr(self, 'analytics_window') and self.analytics_window is not None and self.analytics_window.winfo_exists():
+            self.analytics_window.lift()
+            return
+        self.analytics_window = AnalyticsWindow(self.root, self.analytics, self.stats)
 
     def on_root_state_change(self, _event=None):
         if self.closing or not self.widget_window:
@@ -884,6 +896,21 @@ class StudyTrackerApp:
             controls,
             text="Export CSV",
             command=self.export_csv,
+            bg=RETRO_BG,
+            fg=RETRO_TEXT,
+            activebackground=RETRO_BG,
+            activeforeground=RETRO_TEXT,
+            font=("Tahoma", 9, "bold"),
+            width=14,
+            height=2,
+            relief="raised",
+            bd=2,
+        ).pack(side=TOP, pady=(12, 0))
+
+        Button(
+            controls,
+            text="Analytics",
+            command=self.open_analytics_window,
             bg=RETRO_BG,
             fg=RETRO_TEXT,
             activebackground=RETRO_BG,
@@ -1196,6 +1223,139 @@ class StudyTrackerApp:
         self.stop_button.configure(state="disabled")
         self.refresh_history()
         self.refresh_today_panel()
+
+
+class AnalyticsWindow:
+    def __init__(self, root, analytics_service, stats_service):
+        self.root = root
+        self.analytics_service = analytics_service
+        self.stats_service = stats_service
+        self.window = Toplevel(self.root)
+        self.window.title("Study Analytics")
+        self.window.geometry("940x620")
+        self.window.configure(bg=RETRO_BG)
+        self.window.transient(self.root)
+        self.window.lift()
+        self.window.focus_force()
+
+        self.selected_period = "week"
+        self.stats_labels = {}
+        self.figure = Figure(figsize=(9.0, 3.8), dpi=100)
+        self.axes = self.figure.add_subplot(111)
+        self.canvas = None
+
+        self._build_ui()
+        self.update_view("week")
+
+    def _build_ui(self):
+        header = Frame(self.window, bg=RETRO_TITLE, relief="raised", bd=2, padx=8, pady=6)
+        header.pack(fill=BOTH)
+        Label(
+            header,
+            text="Study Analytics",
+            bg=RETRO_TITLE,
+            fg=RETRO_TITLE_TEXT,
+            font=("Tahoma", 11, "bold"),
+            anchor="w",
+        ).pack(fill=BOTH)
+
+        toolbar = Frame(self.window, bg=RETRO_BG, pady=8)
+        toolbar.pack(fill=BOTH)
+        self.week_button = Button(
+            toolbar,
+            text="Weekly",
+            command=lambda: self.update_view("week"),
+            width=12,
+            relief="sunken",
+            bd=2,
+            bg=RETRO_BG,
+            fg=RETRO_TEXT,
+        )
+        self.week_button.pack(side=LEFT, padx=(10, 6))
+        self.month_button = Button(
+            toolbar,
+            text="Monthly",
+            command=lambda: self.update_view("month"),
+            width=12,
+            relief="raised",
+            bd=2,
+            bg=RETRO_BG,
+            fg=RETRO_TEXT,
+        )
+        self.month_button.pack(side=LEFT)
+
+        stats_frame = Frame(self.window, bg=RETRO_BG, relief="sunken", bd=2, padx=10, pady=10)
+        stats_frame.pack(fill=BOTH, padx=10, pady=(0, 10))
+
+        title_label = Label(
+            stats_frame,
+            text="Key Performance Metrics",
+            bg=RETRO_LIGHT,
+            fg=RETRO_TEXT,
+            font=("Tahoma", 9, "bold"),
+            anchor="w",
+        )
+        title_label.pack(fill=BOTH, pady=(0, 10))
+
+        row = Frame(stats_frame, bg=RETRO_LIGHT)
+        row.pack(fill=BOTH, pady=(0, 10))
+        self._create_stat_item(row, "Total Time", "total_time")
+        self._create_stat_item(row, "Average Daily", "average_daily")
+        self._create_stat_item(row, "Average Session", "average_session")
+
+        row = Frame(stats_frame, bg=RETRO_LIGHT)
+        row.pack(fill=BOTH, pady=(0, 10))
+        self._create_stat_item(row, "Sessions", "session_count")
+        self._create_stat_item(row, "Best Day", "best_day")
+        self._create_stat_item(row, "Goal Attainment", "goal_ratio")
+
+        chart_panel = Frame(self.window, bg=RETRO_LIGHT, relief="sunken", bd=2)
+        chart_panel.pack(fill=BOTH, expand=True, padx=10, pady=(0, 10))
+        self.canvas = FigureCanvasTkAgg(self.figure, master=chart_panel)
+        self.canvas.get_tk_widget().pack(fill=BOTH, expand=True)
+
+    def _create_stat_item(self, parent, label_text, key):
+        item = Frame(parent, bg=RETRO_LIGHT, relief="ridge", bd=1, padx=10, pady=8)
+        item.pack(side=LEFT, expand=True, fill=BOTH, padx=4)
+        Label(item, text=label_text, bg=RETRO_LIGHT, fg=RETRO_TEXT, font=("Tahoma", 8, "bold"), anchor="w").pack(fill=BOTH)
+        value_label = Label(item, text="--", bg=RETRO_LIGHT, fg=RETRO_TEXT, font=("Tahoma", 12, "bold"), anchor="w")
+        value_label.pack(fill=BOTH, pady=(4, 0))
+        self.stats_labels[key] = value_label
+
+    def update_view(self, period):
+        self.selected_period = period
+        self.week_button.configure(relief="sunken" if period == "week" else "raised")
+        self.month_button.configure(relief="sunken" if period == "month" else "raised")
+
+        days = 7 if period == "week" else 30
+        summary = self.analytics_service.summary_for_days(days, self.stats_service.daily_goal_seconds())
+        self._refresh_stats(summary)
+        self._draw_chart(summary["totals"], days)
+
+    def _refresh_stats(self, stats):
+        self.stats_labels["total_time"].configure(text=format_duration(stats["total_time"]))
+        self.stats_labels["average_daily"].configure(text=format_duration(stats["average_daily"]))
+        self.stats_labels["average_session"].configure(text=format_duration(stats["average_session"]))
+        self.stats_labels["session_count"].configure(text=str(stats["session_count"]))
+        best_day = stats["best_day"] or "—"
+        self.stats_labels["best_day"].configure(text=f"{best_day} ({format_duration(stats['best_seconds'])})" if stats["best_day"] else "—")
+        self.stats_labels["goal_ratio"].configure(text=f"{stats['goal_ratio']}%")
+
+    def _draw_chart(self, totals, days):
+        labels = [item[0][5:] for item in totals]
+        values = [item[1] / 3600 for item in totals]
+        self.axes.clear()
+        self.axes.bar(labels, values, color="#4f81bd", edgecolor="#2c3e50")
+        self.axes.set_title("Study Hours by Day", color="#000000", pad=10)
+        self.axes.set_xlabel("Date", color="#000000")
+        self.axes.set_ylabel("Hours", color="#000000")
+        self.axes.grid(True, linestyle="--", alpha=0.35)
+        self.axes.set_ylim(0, max(values + [1]))
+        for label in self.axes.get_xticklabels():
+            label.set_rotation(45)
+            label.set_ha("right")
+        self.figure.tight_layout()
+        self.canvas.draw()
 
 
 if __name__ == "__main__":

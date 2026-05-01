@@ -87,6 +87,7 @@ class AnalyticsService:
             "session_count": session_count,
             "average_session": average_session,
             "best_date": best_date,
+            "best_day": best_date,
             "best_seconds": best_seconds,
             "goal_ratio": goal_ratio,
         }

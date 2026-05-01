@@ -1233,14 +1233,14 @@ class AnalyticsWindow:
         self.window = Toplevel(self.root)
         self.window.title("Study Analytics")
         self.window.geometry("940x620")
-        self.window.configure(bg=RETRO_BG)
+        self.window.configure(bg=RETRO_PANEL)
         self.window.transient(self.root)
         self.window.lift()
         self.window.focus_force()
 
         self.selected_period = "week"
         self.stats_labels = {}
-        self.figure = Figure(figsize=(9.0, 3.8), dpi=100)
+        self.figure = Figure(figsize=(9.0, 3.8), dpi=100, facecolor=RETRO_LIGHT)
         self.axes = self.figure.add_subplot(111)
         self.canvas = None
 
@@ -1259,7 +1259,7 @@ class AnalyticsWindow:
             anchor="w",
         ).pack(fill=BOTH)
 
-        toolbar = Frame(self.window, bg=RETRO_BG, pady=8)
+        toolbar = Frame(self.window, bg=RETRO_PANEL, pady=8, padx=10)
         toolbar.pack(fill=BOTH)
         self.week_button = Button(
             toolbar,
@@ -1268,10 +1268,10 @@ class AnalyticsWindow:
             width=12,
             relief="sunken",
             bd=2,
-            bg=RETRO_BG,
+            bg=RETRO_LIGHT,
             fg=RETRO_TEXT,
         )
-        self.week_button.pack(side=LEFT, padx=(10, 6))
+        self.week_button.pack(side=LEFT, padx=(0, 6))
         self.month_button = Button(
             toolbar,
             text="Monthly",
@@ -1279,10 +1279,18 @@ class AnalyticsWindow:
             width=12,
             relief="raised",
             bd=2,
-            bg=RETRO_BG,
+            bg=RETRO_LIGHT,
             fg=RETRO_TEXT,
         )
-        self.month_button.pack(side=LEFT)
+        self.month_button.pack(side=LEFT, padx=(0, 12))
+        Label(
+            toolbar,
+            text="Select a period to view average study performance and trends.",
+            bg=RETRO_PANEL,
+            fg=RETRO_TEXT,
+            font=("Tahoma", 8),
+            anchor="w",
+        ).pack(side=LEFT, padx=(6, 0))
 
         stats_frame = Frame(self.window, bg=RETRO_BG, relief="sunken", bd=2, padx=10, pady=10)
         stats_frame.pack(fill=BOTH, padx=10, pady=(0, 10))
@@ -1337,23 +1345,27 @@ class AnalyticsWindow:
         self.stats_labels["average_daily"].configure(text=format_duration(stats["average_daily"]))
         self.stats_labels["average_session"].configure(text=format_duration(stats["average_session"]))
         self.stats_labels["session_count"].configure(text=str(stats["session_count"]))
-        best_day = stats["best_day"] or "—"
-        self.stats_labels["best_day"].configure(text=f"{best_day} ({format_duration(stats['best_seconds'])})" if stats["best_day"] else "—")
+        best_day = stats.get("best_day") or stats.get("best_date") or "—"
+        self.stats_labels["best_day"].configure(text=f"{best_day} ({format_duration(stats['best_seconds'])})" if best_day not in (None, "—") else "—")
         self.stats_labels["goal_ratio"].configure(text=f"{stats['goal_ratio']}%")
 
     def _draw_chart(self, totals, days):
         labels = [item[0][5:] for item in totals]
         values = [item[1] / 3600 for item in totals]
         self.axes.clear()
+        self.axes.set_facecolor("#f3f3f3")
         self.axes.bar(labels, values, color="#4f81bd", edgecolor="#2c3e50")
-        self.axes.set_title("Study Hours by Day", color="#000000", pad=10)
-        self.axes.set_xlabel("Date", color="#000000")
-        self.axes.set_ylabel("Hours", color="#000000")
-        self.axes.grid(True, linestyle="--", alpha=0.35)
+        self.axes.set_title("Study Hours by Day", color="#000000", pad=10, fontsize=11, fontweight="bold")
+        self.axes.set_xlabel("Date", color="#000000", fontsize=9)
+        self.axes.set_ylabel("Hours", color="#000000", fontsize=9)
+        self.axes.grid(True, linestyle="--", alpha=0.35, color="#808080")
         self.axes.set_ylim(0, max(values + [1]))
+        self.axes.spines["top"].set_visible(False)
+        self.axes.spines["right"].set_visible(False)
         for label in self.axes.get_xticklabels():
             label.set_rotation(45)
             label.set_ha("right")
+            label.set_color("#000000")
         self.figure.tight_layout()
         self.canvas.draw()
 

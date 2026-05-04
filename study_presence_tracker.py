@@ -43,15 +43,13 @@ AWAY_MISSES_REQUIRED = 1
 SOFT_FACE_HOLD_SECONDS = 45
 CAMERA_INDEX = 0
 
-RETRO_BG = "#e4ecf9"
-RETRO_DARK = "#5b7db0"
+RETRO_BG = "#c0c0c0"
+RETRO_DARK = "#808080"
 RETRO_LIGHT = "#ffffff"
-RETRO_TITLE = "#1d4f9c"
+RETRO_TITLE = "#000080"
 RETRO_TITLE_TEXT = "#ffffff"
-RETRO_TEXT = "#1c2f50"
-RETRO_PANEL = "#d9e7f8"
-RETRO_BUTTON = "#c3d4f1"
-RETRO_BUTTON_ACTIVE = "#acc4ea"
+RETRO_TEXT = "#000000"
+RETRO_PANEL = "#d4d0c8"
 
 
 def format_duration(seconds):
@@ -485,13 +483,13 @@ class StudyTrackerApp:
         self.timer_var = StringVar(value="00:00:00")
         self.today_var = StringVar(value="Today: 00:00:00")
         self.goal_var = StringVar(value="Goal: --")
+        self.goal_pct_var = StringVar(value="Goal achieved: 0%")
         self.streak_var = StringVar(value="Streak: 0 days")
         self.goal_entry_var = StringVar(value="")
-        self.goal_pct_var = StringVar(value="Goal completed: 0%")
         self.status_var = StringVar(value="Ready")
-        self.camera_var = StringVar(value="Camera starting...")
+        self.camera_var = StringVar(value="Camera inactive")
         self.away_var = StringVar(value="Away: 00:00")
-        self.preview_status_var = StringVar(value="Camera Preview")
+        self.preview_status_var = StringVar(value="Camera preview inactive")
         self.memo_preview_var = StringVar(value="No memo saved yet.")
         self.preview_image = None
         self.widget_window = None
@@ -501,7 +499,6 @@ class StudyTrackerApp:
         self._build_ui()
         self.create_corner_widget()
         self.load_goal_display()
-        self.camera.start()
         self.refresh_history()
         self.refresh_today_panel()
         self.root.after(1000, self.tick)
@@ -724,11 +721,11 @@ class StudyTrackerApp:
         today = Label(left_panel, textvariable=self.today_var, bg=RETRO_BG, fg=RETRO_TEXT, font=("Tahoma", 11, "bold"))
         today.pack(anchor="w", pady=(4, 2))
 
-        goal = Label(left_panel, textvariable=self.goal_var, bg=RETRO_PANEL, fg=RETRO_TEXT, font=("Tahoma", 9, "bold"), anchor="w", relief="groove", bd=1, padx=6, pady=4)
-        goal.pack(fill=BOTH, anchor="w", pady=(2, 0))
+        goal = Label(left_panel, textvariable=self.goal_var, bg=RETRO_BG, fg=RETRO_TEXT, font=("Tahoma", 9, "bold"))
+        goal.pack(anchor="w", pady=(2, 0))
 
-        goal_pct = Label(left_panel, textvariable=self.goal_pct_var, bg=RETRO_PANEL, fg=RETRO_TEXT, font=("Tahoma", 8), anchor="w", relief="groove", bd=1, padx=6, pady=4)
-        goal_pct.pack(fill=BOTH, anchor="w", pady=(2, 0))
+        goal_pct = Label(left_panel, textvariable=self.goal_pct_var, bg=RETRO_BG, fg=RETRO_TEXT, font=("Tahoma", 9, "bold"))
+        goal_pct.pack(anchor="w", pady=(2, 0))
 
         streak = Label(left_panel, textvariable=self.streak_var, bg=RETRO_BG, fg=RETRO_TEXT, font=("Tahoma", 9, "bold"))
         streak.pack(anchor="w", pady=(2, 0))
@@ -793,9 +790,9 @@ class StudyTrackerApp:
             controls,
             text="Start",
             command=self.start_session,
-            bg=RETRO_BUTTON,
+            bg=RETRO_BG,
             fg=RETRO_TEXT,
-            activebackground=RETRO_BUTTON_ACTIVE,
+            activebackground=RETRO_BG,
             activeforeground=RETRO_TEXT,
             font=("Tahoma", 10, "bold"),
             width=14,
@@ -809,9 +806,9 @@ class StudyTrackerApp:
             controls,
             text="Stop",
             command=self.request_stop_session,
-            bg=RETRO_BUTTON,
+            bg=RETRO_BG,
             fg=RETRO_TEXT,
-            activebackground=RETRO_BUTTON_ACTIVE,
+            activebackground=RETRO_BG,
             activeforeground=RETRO_TEXT,
             font=("Tahoma", 10, "bold"),
             width=14,
@@ -826,9 +823,9 @@ class StudyTrackerApp:
             controls,
             text="I'm Here",
             command=self.mark_manual_here,
-            bg=RETRO_BUTTON,
+            bg=RETRO_BG,
             fg=RETRO_TEXT,
-            activebackground=RETRO_BUTTON_ACTIVE,
+            activebackground=RETRO_BG,
             activeforeground=RETRO_TEXT,
             font=("Tahoma", 9, "bold"),
             width=14,
@@ -842,9 +839,9 @@ class StudyTrackerApp:
             controls,
             text="Test Alarm",
             command=self.test_alarm,
-            bg=RETRO_BUTTON,
+            bg=RETRO_BG,
             fg=RETRO_TEXT,
-            activebackground=RETRO_BUTTON_ACTIVE,
+            activebackground=RETRO_BG,
             activeforeground=RETRO_TEXT,
             font=("Tahoma", 9, "bold"),
             width=14,
@@ -985,10 +982,10 @@ class StudyTrackerApp:
         if self.session_running:
             today_total += int(self.active_seconds)
         self.goal_var.set(f"Goal: {format_duration(today_total)} / {format_duration(goal_seconds)}")
-        percent_complete = 0
+        percent = 0
         if goal_seconds > 0:
-            percent_complete = min(100, int(today_total / goal_seconds * 100))
-        self.goal_pct_var.set(f"Goal completed: {percent_complete}%")
+            percent = min(100, int(round(today_total / goal_seconds * 100)))
+        self.goal_pct_var.set(f"Goal achieved: {percent}%")
         streak = self.stats.current_streak_days()
         self.streak_var.set(f"Streak: {streak} day{'s' if streak != 1 else ''}")
 
@@ -1024,6 +1021,8 @@ class StudyTrackerApp:
         self.away_started_monotonic = None
         self.paused_by_away = False
         self.status_var.set("Session running")
+        self.camera_var.set("Camera starting...")
+        self.camera.start()
         self.start_button.configure(state="disabled")
         self.stop_button.configure(state="normal")
 
@@ -1118,6 +1117,10 @@ class StudyTrackerApp:
         ended_at = dt.datetime.now()
         self.session_running = False
         self.alarm.stop()
+        self.camera.stop()
+        self.preview_label.configure(image="", text="Camera inactive")
+        self.preview_status_var.set("Camera preview inactive")
+        self.camera_var.set("Camera inactive")
         self.db.add_session(self.session_started_at, ended_at, self.active_seconds, self.away_seconds, memo)
         self.status_var.set("Session saved")
         self.start_button.configure(state="normal")

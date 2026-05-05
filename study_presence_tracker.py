@@ -36,12 +36,14 @@ DB_PATH = APP_DIR / "study_tracker.db"
 ALARM_PATH = resource_path("Zinda Bhaag Milkha Bhaag 128 Kbps.mp3")
 YUNET_MODEL_PATH = resource_path("face_detection_yunet_2023mar.onnx")
 AWAY_THRESHOLD_SECONDS = 120
+AWAY_PAUSE_SECONDS = 60
 SNAPSHOT_INTERVAL_SECONDS = 5
 PRESENCE_GRACE_SECONDS = 7
 PRESENT_HITS_REQUIRED = 1
 AWAY_MISSES_REQUIRED = 1
 SOFT_FACE_HOLD_SECONDS = 45
 CAMERA_INDEX = 0
+LOW_LIGHT_BRIGHTNESS_THRESHOLD = 70
 
 RETRO_BG = "#c0c0c0"
 RETRO_DARK = "#808080"
@@ -202,8 +204,9 @@ class AlarmPlayer:
 
 
 class CameraPresence:
-    def __init__(self, on_status):
+    def __init__(self, on_status, on_warning=None):
         self.on_status = on_status
+        self.on_warning = on_warning or (lambda text: None)
         self.running = False
         self.present = False
         self.last_seen = 0
@@ -223,15 +226,16 @@ class CameraPresence:
         else:
             self.detector_name = "Haar fallback"
         cascade_path = Path(cv2.data.haarcascades) / "haarcascade_frontalface_default.xml"
-        eye_cascade_path = Path(cv2.data.haarcascades) / "haarcascade_eye_tree_eyeglasses.xml"
         upper_body_path = Path(cv2.data.haarcascades) / "haarcascade_upperbody.xml"
         self.face_cascade = cv2.CascadeClassifier(str(cascade_path))
-        self.eye_cascade = cv2.CascadeClassifier(str(eye_cascade_path))
         self.upper_body_cascade = cv2.CascadeClassifier(str(upper_body_path))
         self.hit_count = 0
         self.miss_count = 0
         self.last_confirmed = 0
         self.last_status = ""
+        self.last_warning = ""
+        self.low_light_warning = False
+        self.clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
         self.preview_lock = threading.Lock()
         self.preview_png = None
         self.preview_signal = "none"
@@ -282,7 +286,20 @@ class CameraPresence:
                 continue
 
             self.last_checked_at = time.monotonic()
-            signal, face_boxes, eye_boxes = self._detect_presence_signal(frame)
+            low_light = self._is_low_light(frame)
+            if low_light != self.low_light_warning:
+                self.low_light_warning = low_light
+                if low_light:
+                    self._set_camera_warning("Low light detected — face may miss")
+                else:
+                    self._set_camera_warning("")
+
+            if low_light:
+                detection_frame = self._enhance_frame(frame)
+            else:
+                detection_frame = frame
+
+            signal, face_boxes = self._detect_presence_signal(detection_frame)
 
             if signal in ("confirmed", "body"):
                 self.hit_count += 1
@@ -305,7 +322,7 @@ class CameraPresence:
                 self.present = False
                 self._set_status("Away")
 
-            self._store_preview(frame, signal, face_boxes, eye_boxes)
+            self._store_preview(frame, signal, face_boxes)
             time.sleep(SNAPSHOT_INTERVAL_SECONDS)
 
         capture.release()
@@ -319,19 +336,33 @@ class CameraPresence:
             self.last_status = text
             self.on_status(text)
 
+    def _set_camera_warning(self, text):
+        if text != self.last_warning:
+            self.last_warning = text
+            self.on_warning(text)
+
+    def _is_low_light(self, frame):
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        return gray.mean() < LOW_LIGHT_BRIGHTNESS_THRESHOLD
+
+    def _enhance_frame(self, frame):
+        ycrcb = cv2.cvtColor(frame, cv2.COLOR_BGR2YCrCb)
+        ycrcb[:, :, 0] = self.clahe.apply(ycrcb[:, :, 0])
+        return cv2.cvtColor(ycrcb, cv2.COLOR_YCrCb2BGR)
+
     def _detect_presence_signal(self, frame):
         if self.yunet is not None:
-            signal, face_boxes, eye_boxes = self._detect_with_yunet(frame)
+            signal, face_boxes = self._detect_with_yunet(frame)
         else:
-            signal, face_boxes, eye_boxes = self._detect_with_haar(frame)
+            signal, face_boxes = self._detect_with_haar(frame)
 
         if signal == "confirmed":
-            return signal, face_boxes, eye_boxes
+            return signal, face_boxes
 
         body_signal, body_boxes = self._detect_upper_body(frame)
         if body_signal == "body":
-            return "body", face_boxes + body_boxes, eye_boxes
-        return signal, face_boxes, eye_boxes
+            return "body", face_boxes + body_boxes
+        return signal, face_boxes
 
     def _detect_upper_body(self, frame):
         if self.upper_body_cascade.empty():
@@ -360,10 +391,9 @@ class CameraPresence:
         self.yunet.setInputSize((width, height))
         _retval, faces = self.yunet.detect(frame)
         if faces is None or len(faces) == 0:
-            return "none", [], []
+            return "none", []
 
         face_boxes = []
-        eye_boxes = []
         for face in faces:
             x, y, w, h = [int(v) for v in face[:4]]
             score = float(face[-1])
@@ -377,16 +407,8 @@ class CameraPresence:
                 continue
 
             face_boxes.append((x, y, w, h))
-            landmarks = face[4:14].reshape((5, 2)).astype(int)
-            left_eye, right_eye = landmarks[0], landmarks[1]
-            eye_distance = abs(int(left_eye[0]) - int(right_eye[0]))
-            if eye_distance >= max(18, w * 0.18):
-                eye_size = max(10, int(w * 0.08))
-                for ex, ey in (left_eye, right_eye):
-                    eye_boxes.append((int(ex - eye_size / 2), int(ey - eye_size / 2), eye_size, eye_size))
-                return "confirmed", face_boxes, eye_boxes
 
-        return ("soft" if face_boxes else "none"), face_boxes, eye_boxes
+        return ("confirmed" if face_boxes else "none"), face_boxes
 
     def _detect_with_haar(self, frame):
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -401,36 +423,19 @@ class CameraPresence:
             flags=cv2.CASCADE_SCALE_IMAGE,
         )
         if len(faces) == 0:
-            return "none", [], []
+            return "none", []
 
-        soft_face_found = False
         face_boxes = []
-        eye_boxes = []
         for (x, y, w, h) in faces:
             if w / max(h, 1) < 0.65 or w / max(h, 1) > 1.45:
                 continue
             if y < height * 0.03 or y + h > height * 0.95:
                 continue
-            soft_face_found = True
             face_boxes.append((x, y, w, h))
 
-            upper_face = gray[y : y + int(h * 0.65), x : x + w]
-            eyes = self.eye_cascade.detectMultiScale(
-                upper_face,
-                scaleFactor=1.08,
-                minNeighbors=5,
-                minSize=(18, 18),
-                flags=cv2.CASCADE_SCALE_IMAGE,
-            )
-            if len(eyes) >= 1:
-                eye_boxes.extend([(x + ex, y + ey, ew, eh) for (ex, ey, ew, eh) in eyes])
-                return "confirmed", face_boxes, eye_boxes
+        return ("confirmed" if face_boxes else "none"), face_boxes
 
-        # Looking down at a book often hides the eyes. This signal is allowed
-        # only after a real face has already been confirmed recently.
-        return ("soft" if soft_face_found else "none"), face_boxes, eye_boxes
-
-    def _store_preview(self, frame, signal, face_boxes, eye_boxes):
+    def _store_preview(self, frame, signal, face_boxes):
         preview = frame.copy()
         color = {
             "confirmed": (34, 197, 94),
@@ -441,8 +446,6 @@ class CameraPresence:
 
         for (x, y, w, h) in face_boxes:
             cv2.rectangle(preview, (x, y), (x + w, y + h), color, 2)
-        for (x, y, w, h) in eye_boxes:
-            cv2.rectangle(preview, (x, y), (x + w, y + h), (56, 189, 248), 1)
 
         label = f"{self.detector_name} snapshot: {signal.upper()} | misses {self.miss_count}"
         cv2.rectangle(preview, (10, 10), (10 + min(430, len(label) * 9), 42), (11, 18, 32), -1)
@@ -469,10 +472,11 @@ class StudyTrackerApp:
         self.stats = StudyStatsService(DB_PATH)
         self.analytics = AnalyticsService(DB_PATH)
         self.alarm = AlarmPlayer(ALARM_PATH)
-        self.camera = CameraPresence(self.set_camera_status)
+        self.camera = CameraPresence(self.set_camera_status, self.set_camera_warning)
 
         self.session_running = False
         self.session_started_at = None
+        self.session_seconds = 0
         self.active_seconds = 0
         self.away_seconds = 0
         self.last_tick = None
@@ -488,6 +492,7 @@ class StudyTrackerApp:
         self.goal_entry_var = StringVar(value="")
         self.status_var = StringVar(value="Ready")
         self.camera_var = StringVar(value="Camera inactive")
+        self.camera_warning_var = StringVar(value="")
         self.away_var = StringVar(value="Away: 00:00")
         self.preview_status_var = StringVar(value="Camera preview inactive")
         self.memo_preview_var = StringVar(value="No memo saved yet.")
@@ -569,6 +574,15 @@ class StudyTrackerApp:
             bg=RETRO_BG,
             fg=RETRO_TEXT,
             font=("Tahoma", 8),
+            anchor="w",
+        ).pack(fill=BOTH, pady=(2, 0))
+
+        Label(
+            outer,
+            textvariable=self.camera_warning_var,
+            bg=RETRO_BG,
+            fg="#800000",
+            font=("Tahoma", 7, "italic"),
             anchor="w",
         ).pack(fill=BOTH, pady=(2, 0))
 
@@ -735,6 +749,9 @@ class StudyTrackerApp:
 
         camera = Label(left_panel, textvariable=self.camera_var, bg=RETRO_BG, fg=RETRO_TEXT, font=("Tahoma", 9))
         camera.pack(anchor="w", pady=(4, 0))
+
+        camera_warning = Label(left_panel, textvariable=self.camera_warning_var, bg=RETRO_BG, fg="#800000", font=("Tahoma", 8, "italic"))
+        camera_warning.pack(anchor="w", pady=(2, 0))
 
         away = Label(left_panel, textvariable=self.away_var, bg=RETRO_BG, fg=RETRO_TEXT, font=("Tahoma", 9))
         away.pack(anchor="w", pady=(4, 0))
@@ -963,6 +980,9 @@ class StudyTrackerApp:
     def set_camera_status(self, text):
         self.root.after(0, lambda: self.camera_var.set(f"Camera: {text}"))
 
+    def set_camera_warning(self, text):
+        self.root.after(0, lambda: self.camera_warning_var.set(text))
+
     def update_camera_preview(self):
         preview_png, signal = self.camera.get_preview()
         if preview_png:
@@ -1015,6 +1035,7 @@ class StudyTrackerApp:
     def start_session(self):
         self.session_running = True
         self.session_started_at = dt.datetime.now()
+        self.session_seconds = 0
         self.active_seconds = 0
         self.away_seconds = 0
         self.last_tick = time.monotonic()
@@ -1135,6 +1156,7 @@ class StudyTrackerApp:
             present = self.camera.is_present()
 
             if present:
+                self.session_seconds += elapsed
                 self.away_started_monotonic = None
                 self.paused_by_away = False
                 if not self.testing_alarm:
@@ -1145,16 +1167,20 @@ class StudyTrackerApp:
                 if self.away_started_monotonic is None:
                     self.away_started_monotonic = now
                 away_elapsed = now - self.away_started_monotonic
+                if away_elapsed < AWAY_PAUSE_SECONDS:
+                    self.session_seconds += elapsed
                 self.away_seconds += elapsed
                 self.away_var.set(f"Away: {format_duration(away_elapsed)[3:]}")
                 if away_elapsed >= AWAY_THRESHOLD_SECONDS:
                     self.paused_by_away = True
                     self.alarm.start()
                     self.status_var.set("Paused: away for 2 minutes. Alarm active.")
+                elif away_elapsed >= AWAY_PAUSE_SECONDS:
+                    self.status_var.set("Away: timer paused, alarm not yet active.")
                 else:
                     self.status_var.set(f"Away grace: {format_duration(AWAY_THRESHOLD_SECONDS - away_elapsed)[3:]} left")
 
-            self.timer_var.set(format_duration(self.active_seconds))
+            self.timer_var.set(format_duration(self.session_seconds))
             today_total = self.stats.today_total() + int(self.active_seconds)
             self.today_var.set(f"Today: {format_duration(today_total)}")
             self.update_stats_display()

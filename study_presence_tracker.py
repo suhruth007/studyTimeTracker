@@ -679,10 +679,13 @@ class StudyTrackerApp:
         self.root.iconify()
 
     def open_analytics_window(self):
-        if hasattr(self, 'analytics_window') and self.analytics_window is not None and self.analytics_window.winfo_exists():
-            self.analytics_window.lift()
-            return
-        self.analytics_window = AnalyticsWindow(self.root, self.analytics, self.stats)
+        try:
+            if hasattr(self, 'analytics_window') and self.analytics_window is not None and self.analytics_window.winfo_exists():
+                self.analytics_window.lift()
+                return
+            self.analytics_window = AnalyticsWindow(self.root, self.analytics, self.stats)
+        except Exception as e:
+            messagebox.showerror("Analytics Error", f"Failed to open analytics window:\n{str(e)}")
 
     def on_root_state_change(self, _event=None):
         if self.closing or not self.widget_window:
@@ -724,7 +727,7 @@ class StudyTrackerApp:
         subtitle.pack(fill=BOTH, padx=8, pady=8)
 
         dashboard = Frame(main, bg=RETRO_BG, padx=12, pady=12, relief="raised", bd=2)
-        dashboard.pack(fill=BOTH, expand=False, pady=(10, 0))
+        dashboard.pack(fill=BOTH, expand=True, pady=(10, 0))
 
         left_panel = Frame(dashboard, bg=RETRO_BG)
         left_panel.pack(side=LEFT, fill=BOTH, expand=True)

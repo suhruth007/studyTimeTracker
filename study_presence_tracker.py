@@ -520,7 +520,7 @@ class StudyTrackerApp:
     def create_corner_widget(self):
         widget = Toplevel(self.root)
         widget.title("Study Widget")
-        widget.geometry("268x142+0+0")
+        widget.geometry("268x160+50+50")
         widget.resizable(False, False)
         widget.configure(bg=RETRO_BG)
         widget.attributes("-topmost", True)
@@ -596,7 +596,7 @@ class StudyTrackerApp:
         ).pack(fill=BOTH)
 
         buttons = Frame(outer, bg=RETRO_BG)
-        buttons.pack(fill=BOTH, pady=(6, 0))
+        buttons.pack(fill=X, pady=(6, 0))
 
         Button(
             buttons,
@@ -606,7 +606,7 @@ class StudyTrackerApp:
             fg=RETRO_TEXT,
             activebackground=RETRO_BG,
             activeforeground=RETRO_TEXT,
-            width=7,
+            width=8,
             relief="raised",
             bd=2,
         ).pack(side=LEFT, padx=(0, 5))
@@ -619,7 +619,7 @@ class StudyTrackerApp:
             fg=RETRO_TEXT,
             activebackground=RETRO_BG,
             activeforeground=RETRO_TEXT,
-            width=7,
+            width=8,
             relief="raised",
             bd=2,
         ).pack(side=LEFT, padx=(0, 5))
@@ -632,7 +632,7 @@ class StudyTrackerApp:
             fg=RETRO_TEXT,
             activebackground=RETRO_BG,
             activeforeground=RETRO_TEXT,
-            width=7,
+            width=8,
             relief="raised",
             bd=2,
         ).pack(side=LEFT)

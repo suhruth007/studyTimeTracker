@@ -17,6 +17,7 @@ import pyglet
 
 from analytics_service import AnalyticsService
 from study_services import StudyStatsService
+from achievements_service import AchievementService
 
 
 def app_dir():
@@ -471,6 +472,7 @@ class StudyTrackerApp:
         self.db = StudyDatabase(DB_PATH)
         self.stats = StudyStatsService(DB_PATH)
         self.analytics = AnalyticsService(DB_PATH)
+        self.achievements = AchievementService(DB_PATH)
         self.alarm = AlarmPlayer(ALARM_PATH)
         self.camera = CameraPresence(self.set_camera_status, self.set_camera_warning)
 
@@ -678,14 +680,14 @@ class StudyTrackerApp:
     def minimize_to_widget(self):
         self.root.iconify()
 
-    def open_analytics_window(self):
+    def open_achievements_window(self):
         try:
-            if hasattr(self, 'analytics_window') and self.analytics_window is not None and self.analytics_window.winfo_exists():
-                self.analytics_window.lift()
+            if hasattr(self, 'achievements_window') and self.achievements_window is not None and self.achievements_window.winfo_exists():
+                self.achievements_window.lift()
                 return
-            self.analytics_window = AnalyticsWindow(self.root, self.analytics, self.stats)
+            self.achievements_window = AchievementsWindow(self.root, self.achievements)
         except Exception as e:
-            messagebox.showerror("Analytics Error", f"Failed to open analytics window:\n{str(e)}")
+            messagebox.showerror("Achievements Error", f"Failed to open achievements window:\n{str(e)}")
 
     def on_root_state_change(self, _event=None):
         if self.closing or not self.widget_window:
@@ -945,6 +947,21 @@ class StudyTrackerApp:
             bd=2,
         ).pack(side=TOP, pady=(12, 0))
 
+        Button(
+            controls,
+            text="Achievements",
+            command=self.open_achievements_window,
+            bg=RETRO_BG,
+            fg=RETRO_TEXT,
+            activebackground=RETRO_BG,
+            activeforeground=RETRO_TEXT,
+            font=("Tahoma", 9, "bold"),
+            width=14,
+            height=2,
+            relief="raised",
+            bd=2,
+        ).pack(side=TOP, pady=(12, 0))
+
         preview_title = Label(
             controls,
             textvariable=self.preview_status_var,
@@ -1151,6 +1168,36 @@ class StudyTrackerApp:
         self.stop_button.configure(state="disabled")
         self.refresh_history()
         self.refresh_today_panel()
+
+        # Check for new achievements
+        session_data = {
+            'started_at': self.session_started_at.isoformat(),
+            'ended_at': ended_at.isoformat(),
+            'active_seconds': self.active_seconds,
+            'away_seconds': self.away_seconds,
+            'id': self._get_last_session_id()
+        }
+        new_achievements = self.achievements.check_and_update_achievements(self.stats, session_data)
+
+        # Show achievement notifications
+        if new_achievements:
+            self._show_achievement_notifications(new_achievements)
+
+    def _get_last_session_id(self):
+        """Get the ID of the most recently added session."""
+        with self.db._connect() as conn:
+            row = conn.execute(
+                "SELECT id FROM sessions ORDER BY id DESC LIMIT 1"
+            ).fetchone()
+        return row[0] if row else None
+
+    def _show_achievement_notifications(self, achievements):
+        """Show notifications for newly unlocked achievements."""
+        for achievement in achievements:
+            messagebox.showinfo(
+                "Achievement Unlocked! 🎉",
+                f"{achievement['icon']} {achievement['name']}\n\n{achievement['description']}"
+            )
 
     def tick(self):
         now = time.monotonic()
@@ -1410,6 +1457,217 @@ class AnalyticsWindow:
             label.set_color("#000000")
         self.figure.tight_layout()
         self.canvas.draw()
+
+
+class AchievementsWindow:
+    def __init__(self, root, achievements_service):
+        self.root = root
+        self.achievements_service = achievements_service
+        self.window = Toplevel(self.root)
+        self.window.title("Study Achievements")
+        self.window.geometry("900x700")
+        self.window.configure(bg=RETRO_PANEL)
+        self.window.transient(self.root)
+        self.window.lift()
+        self.window.focus_force()
+
+        self._build_ui()
+        self.refresh_achievements()
+
+    def _build_ui(self):
+        header = Frame(self.window, bg=RETRO_TITLE, relief="raised", bd=2, padx=8, pady=6)
+        header.pack(fill=BOTH)
+        Label(
+            header,
+            text="Study Achievements 🏆",
+            bg=RETRO_TITLE,
+            fg=RETRO_TITLE_TEXT,
+            font=("Tahoma", 12, "bold"),
+            anchor="w",
+        ).pack(fill=BOTH)
+
+        # Stats panel
+        stats_frame = Frame(self.window, bg=RETRO_BG, relief="sunken", bd=2, padx=10, pady=10)
+        stats_frame.pack(fill=BOTH, padx=10, pady=(10, 0))
+
+        self.stats_label = Label(
+            stats_frame,
+            text="Loading achievement stats...",
+            bg=RETRO_BG,
+            fg=RETRO_TEXT,
+            font=("Tahoma", 10),
+            anchor="w",
+        )
+        self.stats_label.pack(fill=BOTH)
+
+        # Achievements list
+        list_frame = Frame(self.window, bg=RETRO_LIGHT, relief="sunken", bd=2)
+        list_frame.pack(fill=BOTH, expand=True, padx=10, pady=10)
+
+        # Scrollable frame for achievements
+        self.canvas = Canvas(list_frame, bg=RETRO_LIGHT, highlightthickness=0)
+        scrollbar = Scrollbar(list_frame, orient="vertical", command=self.canvas.yview)
+        self.scrollable_frame = Frame(self.canvas, bg=RETRO_LIGHT)
+
+        self.scrollable_frame.bind(
+            "<Configure>",
+            lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        )
+
+        self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        self.canvas.configure(yscrollcommand=scrollbar.set)
+
+        self.canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # Category headers
+        self.categories = {}
+        for category in ["streak", "productivity", "goals", "special"]:
+            cat_frame = Frame(self.scrollable_frame, bg=RETRO_LIGHT)
+            cat_frame.pack(fill=BOTH, padx=10, pady=(10, 0))
+
+            cat_title = self._get_category_title(category)
+            Label(
+                cat_frame,
+                text=cat_title,
+                bg=RETRO_TITLE,
+                fg=RETRO_TITLE_TEXT,
+                font=("Tahoma", 10, "bold"),
+                anchor="w",
+                padx=8,
+                pady=4,
+            ).pack(fill=BOTH)
+
+            self.categories[category] = Frame(cat_frame, bg=RETRO_LIGHT)
+            self.categories[category].pack(fill=BOTH, pady=(5, 0))
+
+    def _get_category_title(self, category):
+        titles = {
+            "streak": "🔥 Study Streaks",
+            "productivity": "⚡ Productivity Milestones",
+            "goals": "🎯 Goal Achievements",
+            "special": "✨ Special Achievements"
+        }
+        return titles.get(category, category.title())
+
+    def refresh_achievements(self):
+        # Clear existing achievements
+        for category_frame in self.categories.values():
+            for widget in category_frame.winfo_children():
+                widget.destroy()
+
+        achievements = self.achievements_service.get_all_achievements()
+        stats = self.achievements_service.get_achievement_stats()
+
+        # Update stats
+        self.stats_label.configure(
+            text=f"Achievements Unlocked: {stats['unlocked_count']}/{stats['total_achievements']} "
+                 f"({stats['completion_percentage']}%)"
+        )
+
+        # Group achievements by category
+        by_category = {}
+        for ach in achievements:
+            cat = ach['category']
+            if cat not in by_category:
+                by_category[cat] = []
+            by_category[cat].append(ach)
+
+        # Display achievements
+        for category, ach_list in by_category.items():
+            if category in self.categories:
+                for achievement in ach_list:
+                    self._create_achievement_item(self.categories[category], achievement)
+
+    def _create_achievement_item(self, parent, achievement):
+        item_frame = Frame(parent, bg=RETRO_LIGHT, relief="ridge", bd=1, padx=10, pady=8)
+        item_frame.pack(fill=BOTH, padx=5, pady=2)
+
+        # Icon and title
+        header_frame = Frame(item_frame, bg=RETRO_LIGHT)
+        header_frame.pack(fill=BOTH)
+
+        icon_label = Label(
+            header_frame,
+            text=achievement['icon'],
+            bg=RETRO_LIGHT,
+            fg=RETRO_TEXT,
+            font=("Tahoma", 16),
+        )
+        icon_label.pack(side=LEFT, padx=(0, 10))
+
+        title_frame = Frame(header_frame, bg=RETRO_LIGHT)
+        title_frame.pack(side=LEFT, fill=BOTH, expand=True)
+
+        title_text = achievement['name']
+        if achievement['is_unlocked']:
+            title_text += " ✓"
+
+        title_label = Label(
+            title_frame,
+            text=title_text,
+            bg=RETRO_LIGHT,
+            fg=RETRO_TEXT if achievement['is_unlocked'] else "#666666",
+            font=("Tahoma", 10, "bold"),
+            anchor="w",
+        )
+        title_label.pack(fill=BOTH)
+
+        # Progress bar for locked achievements
+        if not achievement['is_unlocked'] and achievement['target'] > 1:
+            progress_frame = Frame(title_frame, bg=RETRO_LIGHT)
+            progress_frame.pack(fill=BOTH, pady=(2, 0))
+
+            progress_text = f"{achievement['progress']}/{achievement['target']}"
+            progress_label = Label(
+                progress_frame,
+                text=progress_text,
+                bg=RETRO_LIGHT,
+                fg="#666666",
+                font=("Tahoma", 8),
+                anchor="w",
+            )
+            progress_label.pack(side=LEFT)
+
+            # Simple progress bar
+            bar_width = 100
+            progress_ratio = min(achievement['progress'] / achievement['target'], 1.0)
+            filled_width = int(bar_width * progress_ratio)
+
+            bar_frame = Frame(progress_frame, bg="#cccccc", height=8, width=bar_width)
+            bar_frame.pack(side=RIGHT, padx=(10, 0))
+            bar_frame.pack_propagate(False)
+
+            if filled_width > 0:
+                fill_frame = Frame(bar_frame, bg="#4CAF50", height=8, width=filled_width)
+                fill_frame.pack(side=LEFT)
+                fill_frame.pack_propagate(False)
+
+        # Description
+        desc_label = Label(
+            item_frame,
+            text=achievement['description'],
+            bg=RETRO_LIGHT,
+            fg=RETRO_TEXT if achievement['is_unlocked'] else "#999999",
+            font=("Tahoma", 9),
+            anchor="w",
+            wraplength=600,
+            justify=LEFT,
+        )
+        desc_label.pack(fill=BOTH, pady=(5, 0))
+
+        # Unlock date for unlocked achievements
+        if achievement['is_unlocked'] and achievement['unlocked_at']:
+            unlock_date = dt.datetime.fromisoformat(achievement['unlocked_at']).strftime("%B %d, %Y")
+            date_label = Label(
+                item_frame,
+                text=f"Unlocked: {unlock_date}",
+                bg=RETRO_LIGHT,
+                fg="#666666",
+                font=("Tahoma", 8, "italic"),
+                anchor="w",
+            )
+            date_label.pack(fill=BOTH, pady=(2, 0))
 
 
 if __name__ == "__main__":
